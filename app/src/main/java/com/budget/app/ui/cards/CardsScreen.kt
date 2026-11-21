@@ -165,7 +165,7 @@ private fun CardRow(card: CardDto) {
             Text(
                 when {
                     s == null -> "Balance ${Money.whole(card.owedNowCents)} · add its days on the web"
-                    s.plan == "payoff" || s.paymentsLeft != null -> "Payoff plan · ${s.paymentsLeft ?: "?"} payments left"
+                    s.plan == "payoff" || s.paymentsLeft != null -> "0% · ${s.paymentsLeft ?: "?"} payments left"
                     else -> "Statement ${Money.whole(s.dueCents)} · new ${Money.whole(s.newChargesCents)}"
                 },
                 color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,

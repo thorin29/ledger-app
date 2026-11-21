@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.22.0]
+
+Needs server 0.106.3 for the card amounts below.
+
+- **Cards:** each card's amount is what's planned for it: a payment set on the web's Payments
+  page first; on a 0% card, the month's debt payment rather than the pace that clears it by the
+  offer's end; otherwise what's left on the statement. "To cards" on Today and card reminders use
+  the same amounts.
+- **Notifications:** a new one, "Amazon sync stopped", for the Amazon extension (off until turned
+  on).
+- **Setup** says Ledger throughout, and updates come from `thorin29/ledger-app`.
+
 ## [0.21.0]
 
 Needs server 0.101 (with an older server, Today and Insights stay as they were).

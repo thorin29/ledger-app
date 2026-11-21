@@ -55,7 +55,7 @@ object CardReminderLogic {
         return if (due.size == 1) {
             val c = due.first()
             val s = c.status!!
-            val what = if (s.plan == "payoff") "this month's payoff payment" else "left on the statement"
+            val what = if (s.plan == "payoff") "this month's payment" else "left on the statement"
             ReminderMessage(
                 "${CardLogic.faceName(c.name)}: ${Money.format(s.suggestedCents)} due ${whenText(s.nextDue)}",
                 "${Money.format(s.suggestedCents)} $what, due ${Dates.short(s.nextDue) ?: s.nextDue}.",

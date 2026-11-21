@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Talks to your own Budget server over HTTPS. -->
+    <!-- Talks to your own Ledger server over HTTPS. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Android 17 (API 37): reaching a server on the home network needs this

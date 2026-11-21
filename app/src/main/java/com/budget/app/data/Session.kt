@@ -46,10 +46,10 @@ class Session(
         }
     }
 
-    /** Step 1: check the address is a Budget server. Returns its version. */
+    /** Step 1: check the address is a Ledger server. Returns its version. */
     suspend fun checkServer(server: String): String {
         val meta = api.meta(server)
-        if (meta.app != "budget") throw IOException("That address isn't a Budget server.")
+        if (meta.app != "budget") throw IOException("That address isn't a Ledger server.")
         if (meta.api != 1) throw IOException("This app needs a newer or older server (API ${meta.api}).")
         return meta.version
     }

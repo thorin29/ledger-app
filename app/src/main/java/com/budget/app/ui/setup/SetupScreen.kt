@@ -99,7 +99,7 @@ fun SetupScreen(
             e.code == "validation_failed" -> e.message ?: "Check what you entered."
             else -> e.message ?: "The server refused that."
         }
-        is IOException -> e.message?.takeIf { it.contains("Budget") || it.contains("server (API") }
+        is IOException -> e.message?.takeIf { it.contains("Ledger") || it.contains("server (API") }
             ?: "Couldn't reach the server. Check the address and your connection."
         else -> e.message ?: "Something went wrong."
     }
@@ -177,7 +177,7 @@ fun SetupScreen(
         if (parsed != null) {
             container.pendingEnrollLink.value = parsed
         } else {
-            error = "That isn't a Budget code. On the web, open Settings → Sign-in & people: Add a phone for your own account, or Create a one-time code for a second person."
+            error = "That isn't a Ledger code. On the web, open Settings → Sign-in & people: Add a phone for your own account, or Create a one-time code for a second person."
         }
     }
 
@@ -233,7 +233,7 @@ fun SetupScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 com.budget.app.ui.common.LedgerMark(32.dp)
                 Spacer(Modifier.size(10.dp))
-                Text("Budget", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = c.ink)
+                Text("Ledger", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = c.ink)
             }
 
             if (reason != null) Banner(reason, c.warn, c.warnSoft)
@@ -241,7 +241,7 @@ fun SetupScreen(
             Panel {
                 when (Step.valueOf(step)) {
                     Step.SERVER -> {
-                        Text("Your Budget server", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = c.ink)
+                        Text("Your Ledger server", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = c.ink)
                         Text(
                             "The address you open Budget at. Or tap Scan QR code: on the web, Settings → Sign-in & people shows a code under Add a phone (your own account) or for inviting a second person (a new account).",
                             color = c.muted, fontSize = 14.sp,

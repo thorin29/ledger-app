@@ -34,7 +34,7 @@ class CardLogicTest {
     }
 
     @Test fun facesLeadWithWhatToPay() {
-        assertEquals("Payoff payment by Dec 8" to 100_000L, CardLogic.lead(promo))
+        assertEquals("Payment by Dec 8" to 100_000L, CardLogic.lead(promo))
         assertEquals("Pay by Dec 9" to 20_806L, CardLogic.lead(plain))
         assertEquals("Balance" to 500L, CardLogic.lead(CardDto(id = "c", owedNowCents = 500)))
     }

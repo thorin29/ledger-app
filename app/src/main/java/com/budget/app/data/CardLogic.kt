@@ -42,7 +42,7 @@ object CardLogic {
         val due = Dates.short(s.nextDue) ?: s.nextDue
         return when (s.plan) {
             "paid" -> "Nothing due · next $due" to 0L
-            "payoff" -> "Payoff payment by $due" to s.suggestedCents
+            "payoff" -> "Payment by $due" to s.suggestedCents
             else -> "Pay by $due" to s.suggestedCents
         }
     }

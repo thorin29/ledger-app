@@ -1,10 +1,10 @@
 # Ledger for Android
 
-The phone app for [Budget](https://github.com/thorin29/budget), the self-hosted
-budget planner. It talks to your own Budget server and nothing else (apart from
+The phone app for [Ledger](https://github.com/thorin29/ledger), the self-hosted
+budget planner. It talks to your own Ledger server and nothing else (apart from
 checking this repo for updates).
 
-> **Status:** v0.4.0. Needs Budget server 0.15.0 or newer.
+> **Status:** v0.22.0. Needs Ledger server 0.106.3 or newer.
 
 ## What it does
 
@@ -73,8 +73,8 @@ The password is used once to get this phone its own token and is not kept.
 CI builds and signs the APK. See `RELEASING.md` for the signing secrets and how
 to publish an update.
 
-Locally, open the project in Android Studio. A debug build installs as
-"Budget (debug)" beside the release app.
+Locally, open the project in Android Studio. A debug build installs beside the
+release app.
 
 ## Toolchain
 
