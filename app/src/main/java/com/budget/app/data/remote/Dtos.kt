@@ -167,6 +167,8 @@ data class CardStatusDto(
     val plan: String = "statement",
     val paymentsLeft: Int? = null,
     val promoEndsOn: String? = null,
+    /** On a 0% card: each payment needed to clear it by the offer's end. */
+    val monthlyCents: Long? = null,
 )
 
 @Serializable

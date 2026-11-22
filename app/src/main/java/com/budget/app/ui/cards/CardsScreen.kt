@@ -165,6 +165,7 @@ private fun CardRow(card: CardDto) {
             Text(
                 when {
                     s == null -> "Balance ${Money.whole(card.owedNowCents)} · add its days on the web"
+                    s.promoEndsOn != null && s.monthlyCents != null -> "${Money.whole(s.monthlyCents)}/mo clears it by ${Dates.monthYear(s.promoEndsOn)}"
                     s.plan == "payoff" || s.paymentsLeft != null -> "0% · ${s.paymentsLeft ?: "?"} payments left"
                     else -> "Statement ${Money.whole(s.dueCents)} · new ${Money.whole(s.newChargesCents)}"
                 },

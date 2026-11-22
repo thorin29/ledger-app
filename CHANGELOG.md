@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.1]
+
+Needs server 0.106.5.
+
+- **Cards:** a 0% card also shows the payment that clears it by the offer's end ("$1,867/mo clears
+  it by Feb 2028"), beside its planned payment.
+
 ## [0.22.0]
 
 Needs server 0.106.3 for the card amounts below.

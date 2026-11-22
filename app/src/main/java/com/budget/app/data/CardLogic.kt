@@ -52,7 +52,8 @@ object CardLogic {
         if (s.plan != "payoff" || s.promoEndsOn == null || s.paymentsLeft == null) return null
         val end = runCatching { java.time.LocalDate.parse(s.promoEndsOn) }.getOrNull() ?: return null
         val month = end.month.getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.US)
-        return "0% until $month ${end.dayOfMonth}, ${end.year} · ${s.paymentsLeft} payments left"
+        val pace = s.monthlyCents?.let { " · ${Money.whole(it)}/mo clears it" } ?: ""
+        return "0% until $month ${end.dayOfMonth}, ${end.year} · ${s.paymentsLeft} payments left$pace"
     }
 
     /** Across cards: on current statements, and what's new since they closed. */
