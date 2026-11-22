@@ -197,6 +197,7 @@ private fun NeedRow(n: NeedsYouDto, onClick: () -> Unit) {
         "review" -> Triple("Review", c.warn, c.warnSoft)
         "over" -> Triple("Over", c.danger, c.dangerSoft)
         "overdue" -> Triple("Overdue", c.danger, c.dangerSoft)
+        "cardFile" -> Triple("Due", c.warn, c.warnSoft)
         else -> Triple("Short", c.danger, c.dangerSoft)
     }
     Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))

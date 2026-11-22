@@ -4,7 +4,7 @@ The phone app for [Ledger](https://github.com/thorin29/ledger), the self-hosted
 budget planner. It talks to your own Ledger server and nothing else (apart from
 checking this repo for updates).
 
-> **Status:** v0.22.1. Needs Ledger server 0.106.5 or newer.
+> **Status:** v0.22.2. Needs Ledger server 0.109.0 or newer.
 
 ## What it does
 

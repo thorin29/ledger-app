@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.22.2]
+
+Needs server 0.109.0.
+
+- **Insights › Overview:** the ring has the income ring around it, as on the web: dark for income
+  received so far, on a pale track. "Income" in the list has its dark dot.
+- **Card file:** a notification ("Card file due", off until turned on) and a Today item each month
+  when the card file for cards used by others is due.
+
 ## [0.22.1]
 
 Needs server 0.106.5.

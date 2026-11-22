@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -89,7 +90,7 @@ private fun OverviewPart(o: OverviewResponse) {
             Note("of ${Money.whole(o.income.totalCents)}")
         }
         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Ring(o, Modifier.size(132.dp))
+            Ring(o, Modifier.size(140.dp))
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 o.parts.forEach { p ->
@@ -101,8 +102,10 @@ private fun OverviewPart(o: OverviewResponse) {
                         p.budgetCents?.let { Text(" / ${Money.whole(it)}", color = c.muted, fontSize = 13.sp) }
                     }
                 }
-                Row {
-                    Text("Income", color = c.muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(c.ink, CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Income", color = c.ink, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     Text("${Money.whole(o.income.receivedCents)} in", color = c.muted, fontSize = 13.sp)
                 }
             }
@@ -162,35 +165,43 @@ private fun Ring(o: OverviewResponse, modifier: Modifier) {
     val c = Budget.colors
     val danger = c.danger
     val track = c.raised
+    val line = c.line
+    val ink = c.ink
     val income = maxOf(1L, o.income.totalCents).toFloat()
     val colors = o.parts.map { tierColor(it.key) }
     val left = o.leftCents
     Box(modifier.semantics { contentDescription = "${leftText(left)} of ${Money.whole(o.income.totalCents)} income remaining" }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = size.minDimension * 0.12f
-            val inset = stroke / 2 + size.minDimension * 0.06f
-            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-            val topLeft = Offset(inset, inset)
-            drawArc(track, 0f, 360f, false, topLeft, arcSize, style = Stroke(stroke))
+            // As on the web: the thick inner ring is where income went; the thin ring outside it is
+            // income received so far (dark on a pale track); the outer red ring is past income.
+            val s = size.minDimension
+            val mid = Offset(size.width / 2, size.height / 2)
+            fun box(r: Float) = Offset(mid.x - r, mid.y - r) to Size(r * 2, r * 2)
+            val stroke = s * 0.11f
+            val (inTl, inSz) = box(s * 0.34f)
+            drawArc(track, 0f, 360f, false, inTl, inSz, style = Stroke(stroke))
             var at = -90f
             o.parts.forEachIndexed { i, p ->
                 val solid = p.spentCents / income * 360f
-                if (solid > 0) drawArc(colors[i], at, solid, false, topLeft, arcSize, style = Stroke(stroke))
+                if (solid > 0) drawArc(colors[i], at, solid, false, inTl, inSz, style = Stroke(stroke))
                 at += solid
             }
             o.parts.forEachIndexed { i, p ->
                 val pale = p.dueCents / income * 360f
-                if (pale > 0) drawArc(colors[i].copy(alpha = 0.3f), at, pale, false, topLeft, arcSize, style = Stroke(stroke))
+                if (pale > 0) drawArc(colors[i].copy(alpha = 0.3f), at, pale, false, inTl, inSz, style = Stroke(stroke))
                 at += pale
             }
+            val (incTl, incSz) = box(s * 0.425f)
+            drawArc(line, 0f, 360f, false, incTl, incSz, style = Stroke(s * 0.045f))
+            val received = minOf(360f, o.income.receivedCents / income * 360f)
+            if (received > 0) drawArc(ink, -90f, received, false, incTl, incSz, style = Stroke(s * 0.045f))
             // Past income: solid red only for what's actually spent; pale red for what may come.
-            val outer = Offset(inset - stroke * 0.95f, inset - stroke * 0.95f)
-            val outerSize = Size(arcSize.width + stroke * 1.9f, arcSize.height + stroke * 1.9f)
-            if (o.expectedOverCents > o.overCents) drawArc(danger.copy(alpha = 0.25f), -90f, minOf(360f, o.expectedOverCents / income * 360f), false, outer, outerSize, style = Stroke(stroke * 0.35f, cap = StrokeCap.Round))
-            if (o.overCents > 0) drawArc(danger, -90f, minOf(360f, o.overCents / income * 360f), false, outer, outerSize, style = Stroke(stroke * 0.35f, cap = StrokeCap.Round))
+            val (outTl, outSz) = box(s * 0.48f)
+            if (o.expectedOverCents > o.overCents) drawArc(danger.copy(alpha = 0.25f), -90f, minOf(360f, o.expectedOverCents / income * 360f), false, outTl, outSz, style = Stroke(s * 0.025f, cap = StrokeCap.Round))
+            if (o.overCents > 0) drawArc(danger, -90f, minOf(360f, o.overCents / income * 360f), false, outTl, outSz, style = Stroke(s * 0.025f, cap = StrokeCap.Round))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (o.overCents > 0) "${Money.whole(o.overCents)} over" else leftText(left), color = if (o.overCents > 0) c.danger else c.ink, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
+            Text(if (o.overCents > 0) "${Money.whole(o.overCents)} over" else leftText(left), color = if (o.overCents > 0) c.danger else c.ink, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
             Text(if (o.overCents > 0) "past income" else "remaining", color = c.muted, fontSize = 11.sp)
         }
     }

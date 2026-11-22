@@ -20,6 +20,7 @@ enum class AlertKind(val key: String, val group: String, val label: String, val 
     REVIEW("review", "Ledger", "Items to review", "At most once a day"),
     SYNC("syncStopped", "Ledger", "Bank sync stopped", "No new bank data for 24 hours"),
     AMAZON("amazonSync", "Ledger", "Amazon sync stopped", "A failed sync, or none in 3 days"),
+    CARD_FILE("cardFile", "Cards", "Card file due", "Monthly, after the statement closes"),
     UPDATE("update", "Ledger", "App update", "Once per new version");
 
     val setting: String get() = "alert_$key"
