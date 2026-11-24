@@ -392,18 +392,21 @@ private fun BottomBar(current: Tab, updateAvailable: Boolean, reviewWaiting: Boo
                         contentAlignment = Alignment.Center,
                     ) {
                         PhIcon(if (on) t.iconOn else t.icon, null, if (on) c.accent else c.muted)
-                        // The update dot, on every screen: light blue with a ring in the bar color.
-                        if (t == Tab.MORE && (updateAvailable || reviewWaiting)) {
-                            Box(
-                                Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(top = 2.dp, end = 12.dp)
-                                    .size(14.dp)
-                                    .background(c.surface, CircleShape)
-                                    .padding(2.dp)
-                                    .background(if (reviewWaiting) c.warn else UpdateDot, CircleShape)
-                                    .semantics { contentDescription = if (reviewWaiting) "Items to review" else "Update available" },
-                            )
+                        // More's dots, on every screen: amber for items to review, light blue for an
+                        // update, each with a ring in the bar color. With both, the update sits on top
+                        // and the review dot peeks out below it.
+                        if (t == Tab.MORE) {
+                            val both = updateAvailable && reviewWaiting
+                            if (reviewWaiting) {
+                                MoreDot(
+                                    Modifier.align(Alignment.TopEnd).padding(top = if (both) 7.dp else 2.dp, end = if (both) 7.dp else 12.dp),
+                                    c.warn,
+                                    "Items to review",
+                                )
+                            }
+                            if (updateAvailable) {
+                                MoreDot(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 12.dp), UpdateDot, "Update available")
+                            }
                         }
                     }
                     Text(
@@ -417,6 +420,18 @@ private fun BottomBar(current: Tab, updateAvailable: Boolean, reviewWaiting: Boo
             }
         }
     }
+}
+
+@Composable
+private fun MoreDot(modifier: Modifier, color: androidx.compose.ui.graphics.Color, label: String) {
+    Box(
+        modifier
+            .size(14.dp)
+            .background(Budget.colors.surface, CircleShape)
+            .padding(2.dp)
+            .background(color, CircleShape)
+            .semantics { contentDescription = label },
+    )
 }
 
 @Composable

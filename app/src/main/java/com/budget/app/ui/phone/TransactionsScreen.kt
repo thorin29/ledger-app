@@ -57,6 +57,7 @@ fun TransactionsScreen(
 ) {
     val c = Budget.colors
     var search by remember { mutableStateOf(ui.txnSearch) }
+    var opened by remember { mutableStateOf<TxnDto?>(null) }
     var editing by remember { mutableStateOf<TxnDto?>(null) }
     val names = remember(ui.categories) { ui.categories.associate { it.id to it.name } }
     val byDay = remember(ui.transactions) { ui.transactions.groupBy { it.postedOn } }
@@ -98,11 +99,13 @@ fun TransactionsScreen(
                         modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 6.dp),
                     )
                 }
-                items(list, key = { it.id }) { t -> TxnRow(t, names[t.categoryId]) { editing = t } }
+                items(list, key = { it.id }) { t -> TxnRow(t, names[t.categoryId]) { if (t.splits.isNotEmpty()) opened = t else editing = t } }
             }
             item { Spacer(Modifier.height(24.dp).navigationBarsPadding()) }
         }
     }
+
+    opened?.let { t -> ItemsSheet(t, onDismiss = { opened = null }) }
 
     editing?.let { t ->
         CategorySheet(
@@ -137,12 +140,49 @@ private fun TxnRow(t: TxnDto, category: String?, onClick: () -> Unit) {
             when {
                 t.pending -> Pill("Pending", c.warn, c.warnSoft)
                 t.kind == "TRANSFER" -> Pill("Transfer", c.muted, c.raised)
+                t.splits.isNotEmpty() && t.splits.any { it.categoryId == null } -> Pill("Needs a category", c.warn, c.warnSoft)
+                t.splits.isNotEmpty() -> {
+                    val names = t.splits.map { it.categoryName ?: "Needs a category" }.distinct()
+                    Text((if (names.size == 1) names[0] else "${names.size} categories") + " · Amazon ▾", color = c.muted, fontSize = 12.sp)
+                }
                 category == null && t.kind == "NORMAL" && t.amountCents < 0 -> Pill("Needs a category", c.warn, c.warnSoft)
                 else -> Text((category ?: "") + if (t.guessed) " · guessed" else "", color = c.muted, fontSize = 12.sp)
             }
         }
     }
     Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+}
+
+/** The items in a charge split by item, view only: item categories are changed on the web. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ItemsSheet(txn: TxnDto, onDismiss: () -> Unit) {
+    val c = Budget.colors
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.surface) {
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text(txn.merchant, color = c.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Note("${Dates.short(txn.postedOn)} · ${txn.account}")
+                }
+                Text((if (txn.amountCents > 0) "+" else "−") + Money.format(kotlin.math.abs(txn.amountCents)), color = c.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            }
+            Column {
+                txn.splits.forEachIndexed { i, p ->
+                    if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+                    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(p.note ?: "Item", color = c.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (p.categoryId == null) Pill("Needs a category", c.warn, c.warnSoft)
+                            else Text(p.categoryName ?: "", color = c.muted, fontSize = 12.sp)
+                        }
+                        Text(Money.format(kotlin.math.abs(p.amountCents)), color = c.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            Note("Change item categories on the web.")
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

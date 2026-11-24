@@ -59,4 +59,11 @@ class CardLogicTest {
         val e = MonthEntry(lineItemId = "x", name = "Rent", year = 2026, month = 11, kind = "BILL", actualCents = 100, paidOn = "2026-11-01", autoPaid = true)
         assertTrue(EntryStatuses.of(e, LocalDate.of(2026, 11, 16)).text.endsWith("· auto"))
     }
+
+    @Test fun cardPaymentsReadLikeTheWeb() {
+        val over = MonthEntry(lineItemId = "v", name = "Everyday", year = 2026, month = 11, kind = "BILL", budgetedCents = 390_000, actualCents = 421_560, paidOn = "2026-11-16", paidFromSurplus = true, paysCardId = "a")
+        assertEquals(listOf("Paid Nov 16", "of $3,900.00", "$315.60 over", "after bills"), EntryStatuses.cardPaid(over).map { it.text })
+        val moved = MonthEntry(lineItemId = "v", name = "Everyday", year = 2026, month = 11, kind = "BILL", budgetedCents = 0, actualCents = 0, paidOn = "2026-11-06", paidNote = "Balance transfer", paysCardId = "a")
+        assertEquals(listOf("Paid Nov 6", "balance transfer"), EntryStatuses.cardPaid(moved).map { it.text })
+    }
 }

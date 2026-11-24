@@ -149,7 +149,12 @@ data class TxnDto(
     val categoryId: String? = null,
     val guessed: Boolean = false,
     val peer: Boolean = false,
+    /** An Amazon charge split by item (server 0.114.1+). */
+    val splits: List<TxnSplitDto> = emptyList(),
 )
+
+@Serializable
+data class TxnSplitDto(val categoryId: String? = null, val categoryName: String? = null, val amountCents: Long = 0, val note: String? = null)
 
 @Serializable
 data class TxnListResponse(val transactions: List<TxnDto> = emptyList())

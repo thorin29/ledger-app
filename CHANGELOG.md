@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.0]
+
+Needs server 0.114.1.
+
+- **Month:** card payments are in one Cards group, as on the web, with paid of planned and a bar.
+  A paid card shows its date, what was planned, any amount over, and "balance transfer", "after
+  bills" or "auto". They're no longer listed under each half or "Paid from what's left over".
+- **Transactions:** Amazon charges no longer say "guessed". A charge split by item shows its
+  category (or how many) and opens to its items, view only.
+- **More:** an update and items to review both show: the update dot on top, the review dot peeking
+  out under it.
+
 ## [0.22.2]
 
 Needs server 0.109.0.

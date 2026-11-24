@@ -37,4 +37,24 @@ object EntryStatuses {
             else -> EntryStatus("Due $dueText", Tone.MUTED)
         }
     }
+
+    /**
+     * A paid card payment's line, in parts joined with " · ": the date, what was planned, how much
+     * over, and why ("balance transfer", "after bills", "auto"). Only the "over" part is [Tone.WARN].
+     */
+    fun cardPaid(e: MonthEntry): List<EntryStatus> {
+        val paid = e.actualCents ?: return emptyList()
+        val over = paid - e.budgetedCents
+        return listOfNotNull(
+            EntryStatus(Dates.short(e.paidOn)?.let { "Paid $it" } ?: "Paid", Tone.MUTED),
+            if (e.budgetedCents > 0) EntryStatus("of ${Money.format(e.budgetedCents)}", Tone.MUTED) else null,
+            if (e.budgetedCents > 0 && over > 0) EntryStatus("${Money.format(over)} over", Tone.WARN) else null,
+            when {
+                !e.paidNote.isNullOrBlank() -> e.paidNote.lowercase()
+                e.paidFromSurplus -> "after bills"
+                e.autoPaid -> "auto"
+                else -> null
+            }?.let { EntryStatus(it, Tone.MUTED) },
+        )
+    }
 }

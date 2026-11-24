@@ -59,9 +59,14 @@ data class MonthEntry(
     val bankLinked: Boolean = false,
     /** Unpaid, but its payment is already in the bank feed (server 0.100+). */
     val pendingCharge: PendingChargeDto? = null,
+    /** The card this line pays, when it's a card payment (server 0.114+). */
+    val paysCardId: String? = null,
+    /** Why a paid amount isn't a payment, e.g. "Balance transfer" (server 0.114+). */
+    val paidNote: String? = null,
 ) {
     val isIncome: Boolean get() = kind == "INCOME"
     val settled: Boolean get() = actualCents != null
+    val isCardPayment: Boolean get() = paysCardId != null
 }
 
 @Serializable
