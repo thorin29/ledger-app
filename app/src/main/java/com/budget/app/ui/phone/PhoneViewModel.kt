@@ -94,6 +94,27 @@ class PhoneViewModel(private val c: AppContainer) : ViewModel() {
         }
     }
 
+    /**
+     * Who owes you for a charge: an existing person ([personId]) or a new one ([newName]), and how
+     * much. A null person clears it.
+     */
+    fun setOwed(txn: TxnDto, personId: String?, newName: String?, cents: Long?) {
+        viewModelScope.launch {
+            val note = try {
+                val id = if (personId == null && !newName.isNullOrBlank()) c.api.addPerson(newName.trim()).id else personId
+                c.api.setOwed(txn.id, id, cents)
+                if (!newName.isNullOrBlank()) fetch { c.api.categories() }?.let { r -> _ui.update { it.copy(categories = r) } }
+                if (id == null) "No one owes you for it now." else "Saved."
+            } catch (e: ApiException) {
+                if (e.status == 404) "Ledger on the server needs updating for this." else e.message ?: "The server refused that."
+            } catch (e: IOException) {
+                "You're offline. Try again when you're back."
+            }
+            _ui.update { it.copy(message = note) }
+            loadTransactions()
+        }
+    }
+
     fun clearMessage() = _ui.update { it.copy(message = null) }
 
     private suspend fun <T> fetch(call: suspend () -> T): T? = try {

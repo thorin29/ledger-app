@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.25.0]
+
+Needs server 0.115.0.
+
+- **Transactions:** "Someone owes me" in a charge's sheet: pick the person (or add one) and how much,
+  with Half and All. The charge shows "Owed · name $amount". Money in can be put under "Paid back
+  by" that person. Their share leaves your spending, as on the web's Owed to You.
+
 ## [0.24.1]
 
 ### Fixed

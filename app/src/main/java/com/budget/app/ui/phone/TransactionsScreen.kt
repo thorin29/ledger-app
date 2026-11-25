@@ -54,6 +54,8 @@ fun TransactionsScreen(
     onFilter: (String) -> Unit,
     onSearch: (String) -> Unit,
     onCategorize: (TxnDto, String?, Boolean, Boolean) -> Unit,
+    /** Who owes you for a charge: (charge, person id or null, new person's name, cents). */
+    onOwed: (TxnDto, String?, String?, Long?) -> Unit = { _, _, _, _ -> },
 ) {
     val c = Budget.colors
     var search by remember { mutableStateOf(ui.txnSearch) }
@@ -116,6 +118,10 @@ fun TransactionsScreen(
                 editing = null
                 onCategorize(t, categoryId, forMerchant, transfer)
             },
+            onOwed = { person, newName, cents ->
+                editing = null
+                onOwed(t, person, newName, cents)
+            },
         )
     }
 }
@@ -147,6 +153,11 @@ private fun TxnRow(t: TxnDto, category: String?, onClick: () -> Unit) {
                 }
                 category == null && t.kind == "NORMAL" && t.amountCents < 0 -> Pill("Needs a category", c.warn, c.warnSoft)
                 else -> Text((category ?: "") + if (t.guessed) " · guessed" else "", color = c.muted, fontSize = 12.sp)
+            }
+        }
+        t.owed?.let { o ->
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End) {
+                Pill("Owed · ${o.personName} ${Money.format(o.cents)}", c.accent, c.accentSoft)
             }
         }
     }
@@ -187,10 +198,19 @@ private fun ItemsSheet(txn: TxnDto, onDismiss: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun CategorySheet(txn: TxnDto, categories: List<CategoryDto>, onDismiss: () -> Unit, onPick: (String?, Boolean, Boolean) -> Unit) {
+private fun CategorySheet(
+    txn: TxnDto,
+    categories: List<CategoryDto>,
+    onDismiss: () -> Unit,
+    onPick: (String?, Boolean, Boolean) -> Unit,
+    onOwed: (String?, String?, Long?) -> Unit,
+) {
     val c = Budget.colors
     var picked by remember { mutableStateOf(txn.categoryId) }
     var transfer by remember { mutableStateOf(txn.kind == "TRANSFER") }
+    val people = categories.filter { it.managedForOthers }
+    val budgetCats = categories.filterNot { it.managedForOthers }
+    val charge = txn.kind == "NORMAL" && txn.amountCents < 0 && !txn.pending && people.none { it.id == txn.categoryId }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.surface) {
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth()) {
@@ -202,13 +222,25 @@ private fun CategorySheet(txn: TxnDto, categories: List<CategoryDto>, onDismiss:
             }
             Label("Category")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                categories.forEach { cat ->
+                budgetCats.forEach { cat ->
                     Choice(cat.name, !transfer && picked == cat.id) {
                         picked = cat.id
                         transfer = false
                     }
                 }
                 Choice("Transfer (not spending)", transfer) { transfer = true }
+            }
+            // Money back from someone goes in their name.
+            if (!charge && people.isNotEmpty()) {
+                Label("Paid back by")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    people.forEach { p ->
+                        Choice(p.name, !transfer && picked == p.id) {
+                            picked = p.id
+                            transfer = false
+                        }
+                    }
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val ready = transfer || picked != null
@@ -235,7 +267,75 @@ private fun CategorySheet(txn: TxnDto, categories: List<CategoryDto>, onDismiss:
                     )
                 }
             }
+            if (charge) OwedSection(txn, people, onOwed)
         }
+    }
+}
+
+/** "Someone owes me": who, and how much of the charge. Their share leaves your spending. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun OwedSection(txn: TxnDto, people: List<CategoryDto>, onOwed: (String?, String?, Long?) -> Unit) {
+    val c = Budget.colors
+    val total = kotlin.math.abs(txn.amountCents)
+    var person by remember { mutableStateOf(txn.owed?.personId) }
+    var adding by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf(String.format(java.util.Locale.US, "%.2f", (txn.owed?.cents ?: total) / 100.0)) }
+    val cents = amount.replace(",", "").replace("$", "").toDoubleOrNull()?.let { Math.round(it * 100) }
+    val ready = (person != null || (adding && newName.isNotBlank())) && cents != null && cents in 1..total
+    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+    Label("Someone owes me")
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        people.forEach { p ->
+            Choice(p.name, !adding && person == p.id) {
+                person = p.id
+                adding = false
+            }
+        }
+        Choice("New person…", adding) {
+            adding = true
+            person = null
+        }
+    }
+    if (adding) {
+        OutlinedTextField(value = newName, onValueChange = { newName = it.take(40) }, placeholder = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        OutlinedTextField(
+            value = amount,
+            onValueChange = { amount = it },
+            leadingIcon = { Text("$") },
+            singleLine = true,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+            modifier = Modifier.weight(1f),
+        )
+        Choice("Half", false) { amount = String.format(java.util.Locale.US, "%.2f", Math.round(total / 2.0) / 100.0) }
+        Choice("All", false) { amount = String.format(java.util.Locale.US, "%.2f", total / 100.0) }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (txn.owed != null) {
+            Text(
+                "Remove",
+                color = c.ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .weight(1f)
+                    .border(1.dp, c.line, RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button) { onOwed(null, null, null) }
+                    .padding(vertical = 13.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+        Text(
+            "Save who owes me",
+            color = c.onAccent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .weight(1.4f)
+                .background(if (ready) c.accent else c.muted, RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, enabled = ready) { onOwed(if (adding) null else person, if (adding) newName else null, cents) }
+                .padding(vertical = 13.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 }
 

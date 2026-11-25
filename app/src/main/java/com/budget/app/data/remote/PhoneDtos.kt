@@ -151,7 +151,15 @@ data class TxnDto(
     val peer: Boolean = false,
     /** An Amazon charge split by item (server 0.114.1+). */
     val splits: List<TxnSplitDto> = emptyList(),
+    /** Who owes you part or all of this charge (server 0.115+). */
+    val owed: OwedDto? = null,
 )
+
+@Serializable
+data class OwedDto(val personId: String = "", val personName: String = "", val cents: Long = 0)
+
+@Serializable
+data class PersonDto(val id: String = "", val name: String = "")
 
 @Serializable
 data class TxnSplitDto(val categoryId: String? = null, val categoryName: String? = null, val amountCents: Long = 0, val note: String? = null)
@@ -160,7 +168,13 @@ data class TxnSplitDto(val categoryId: String? = null, val categoryName: String?
 data class TxnListResponse(val transactions: List<TxnDto> = emptyList())
 
 @Serializable
-data class CategoryDto(val id: String = "", val name: String = "", val active: Boolean = true)
+data class CategoryDto(
+    val id: String = "",
+    val name: String = "",
+    val active: Boolean = true,
+    /** A person who owes you, or money held for others: kept out of your spending. */
+    val managedForOthers: Boolean = false,
+)
 
 @Serializable
 data class CategoriesResponse(val categories: List<CategoryDto> = emptyList())

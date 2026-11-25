@@ -310,6 +310,7 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
                         onFilter = { phoneVm.loadTransactions(filter = it) },
                         onSearch = { phoneVm.loadTransactions(search = it) },
                         onCategorize = { t, cat, all, transfer -> phoneVm.categorize(t, cat, all, transfer) },
+                        onOwed = { t, person, newName, cents -> phoneVm.setOwed(t, person, newName, cents) },
                     )
                     MoreScreenKind.NOTIFICATIONS -> NotificationsScreen(container, onBack = { more = MoreScreenKind.NONE })
                     MoreScreenKind.NONE -> MoreScreen(

@@ -235,6 +235,19 @@ class ApiClient(
         return decode(send("PUT", "/api/v1/transactions/" + java.net.URLEncoder.encode(transactionId, "UTF-8"), body = body))
     }
 
+    /** Marks [cents] of a charge as owed by [personId]; null clears it (server 0.115+). */
+    suspend fun setOwed(transactionId: String, personId: String?, cents: Long?) {
+        val body = buildJsonObject {
+            put("personId", personId)
+            if (cents != null) put("cents", cents)
+        }.toString()
+        send("PUT", "/api/v1/transactions/" + java.net.URLEncoder.encode(transactionId, "UTF-8") + "/owed", body = body)
+    }
+
+    /** Adds someone who can owe you (server 0.115+). */
+    suspend fun addPerson(name: String): PersonDto =
+        decode(send("POST", "/api/v1/people", body = buildJsonObject { put("name", name) }.toString()))
+
     suspend fun setTransfer(transactionId: String, on: Boolean): CategoryChangeResponse {
         val body = buildJsonObject { put("transfer", on) }.toString()
         return decode(send("PUT", "/api/v1/transactions/" + java.net.URLEncoder.encode(transactionId, "UTF-8"), body = body))
