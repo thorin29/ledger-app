@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.24.1]
+
+### Fixed
+- **Updates:** "Couldn't check for updates (HTTP 403)" on Wi-Fi. The check used GitHub's API, which
+  allows 60 checks an hour per internet address, shared by everything on the home network. It now
+  reads the latest release through github.com's download links instead, and only falls back to the
+  API.
+
 ## [0.24.0]
 
 Needs server 0.114.1.

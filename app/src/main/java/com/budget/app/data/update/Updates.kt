@@ -27,7 +27,7 @@ data class UpdateInfo(val versionCode: Int, val versionName: String, val notes: 
 /**
  * Checks this app's public GitHub releases for a newer build, the same way the
  * Kairos app does: the latest release carries `latest.json` (versionCode,
- * versionName, notes) and the signed APK. Nothing about the person or their
+ * versionName, notes, tag, apk) and the signed APK. Nothing about the person or their
  * server is sent; it is an anonymous read of a public page.
  *
  * The last result is kept, so the badges survive a restart and a failed check
@@ -57,17 +57,10 @@ class UpdateChecker(private val settings: Settings) {
     suspend fun check(): UpdateInfo? = withContext(Dispatchers.IO) {
         _checking.value = true
         try {
-            // No release published yet is a 404, not a failure: nothing newer.
-            val release = fetchOrNull<GhRelease>("https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest")
-            val meta = release?.assets?.firstOrNull { it.name == "latest.json" }
-            val apk = release?.assets?.firstOrNull { it.name.endsWith(".apk") }
-            val found = if (meta != null && apk != null) {
-                val latest = fetch<LatestJson>(meta.url)
-                UpdateInfo(latest.versionCode, latest.versionName, latest.notes, apk.url)
-                    .takeIf { it.versionCode > BuildConfig.VERSION_CODE }
-            } else {
-                null
-            }
+            // The API is only asked when the download links have nothing (or fail).
+            val first = runCatching { fromDownloads() }
+            val latest = first.getOrNull() ?: runCatching { fromApi() }.getOrElse { throw first.exceptionOrNull() ?: it }
+            val found = latest?.takeIf { it.versionCode > BuildConfig.VERSION_CODE }
             settings.set(Settings.UPDATE_LATEST, found?.let { json.encodeToString(UpdateInfo.serializer(), it) })
             _available.value = found
             _lastError.value = null
@@ -80,12 +73,35 @@ class UpdateChecker(private val settings: Settings) {
         }
     }
 
+    /**
+     * The latest release's files, read through github.com's download links. Unlike GitHub's API,
+     * these aren't limited to 60 checks an hour per address. A home network where other devices
+     * or servers also check GitHub can use that up, and the check then fails with HTTP 403.
+     * Null when no release has latest.json yet (404).
+     */
+    private fun fromDownloads(): UpdateInfo? {
+        val base = "https://github.com/${BuildConfig.UPDATE_REPO}/releases"
+        val latest = fetchOrNull<LatestJson>("$base/latest/download/latest.json", api = false) ?: return null
+        val apk = latest.apk.ifBlank { "budget-${latest.versionName}.apk" }
+        val tag = latest.tag.ifBlank { "v${latest.versionName}" }
+        return UpdateInfo(latest.versionCode, latest.versionName, latest.notes, "$base/download/$tag/$apk")
+    }
+
+    /** The API, for a release older than the download-link check. */
+    private fun fromApi(): UpdateInfo? {
+        val release = fetchOrNull<GhRelease>("https://api.github.com/repos/${BuildConfig.UPDATE_REPO}/releases/latest") ?: return null
+        val meta = release.assets.firstOrNull { it.name == "latest.json" } ?: return null
+        val apk = release.assets.firstOrNull { it.name.endsWith(".apk") } ?: return null
+        val latest = fetch<LatestJson>(meta.url)
+        return UpdateInfo(latest.versionCode, latest.versionName, latest.notes, apk.url)
+    }
+
     /** Like [fetch], but a 404 is null. */
-    private inline fun <reified T> fetchOrNull(url: String): T? {
+    private inline fun <reified T> fetchOrNull(url: String, api: Boolean = true): T? {
         val req = Request.Builder()
             .url(url)
-            .header("User-Agent", "Budget-Android")
-            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", "Ledger-Android")
+            .apply { if (api) header("Accept", "application/vnd.github+json") }
             .build()
         client.newCall(req).execute().use { resp ->
             if (resp.code == 404) return null
@@ -97,7 +113,7 @@ class UpdateChecker(private val settings: Settings) {
     private inline fun <reified T> fetch(url: String): T {
         val req = Request.Builder()
             .url(url)
-            .header("User-Agent", "Budget-Android") // GitHub refuses requests without one
+            .header("User-Agent", "Ledger-Android") // GitHub refuses requests without one
             .header("Accept", "application/vnd.github+json")
             .build()
         client.newCall(req).execute().use { resp ->
@@ -114,7 +130,14 @@ private data class GhRelease(val assets: List<GhAsset> = emptyList())
 private data class GhAsset(val name: String = "", @SerialName("browser_download_url") val url: String = "")
 
 @Serializable
-private data class LatestJson(val versionCode: Int = 0, val versionName: String = "", val notes: String = "")
+private data class LatestJson(
+    val versionCode: Int = 0,
+    val versionName: String = "",
+    val notes: String = "",
+    /** The release's tag and APK file name (releases from 0.24.1 on). */
+    val tag: String = "",
+    val apk: String = "",
+)
 
 /**
  * Downloads the update APK and hands it to Android's installer. The person
