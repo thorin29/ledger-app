@@ -70,7 +70,6 @@ import com.budget.app.ui.theme.Budget
 import com.budget.app.ui.theme.Ph
 import com.budget.app.ui.theme.PhIcon
 import com.budget.app.ui.theme.swatchOf
-import com.budget.app.ui.theme.UpdateDot
 import com.budget.app.ui.theme.UpdatePill
 import kotlinx.coroutines.launch
 
@@ -183,10 +182,7 @@ fun MoreScreen(
 
         SectionLabel("App", c.muted)
         Group {
-            if (update != null) {
-                Item(Ph.DOWNLOAD, "Update available", iconTint = UpdateDot, onClick = onOpenUpdate)
-                Divider()
-            }
+            // One row: the version, and an Update button when there's a newer one.
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -195,17 +191,17 @@ fun MoreScreen(
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PhIcon(Ph.DOWNLOAD, null, c.muted)
+                PhIcon(Ph.DOWNLOAD, null, if (update != null) UpdatePill else c.muted)
                 Spacer(Modifier.width(14.dp))
                 Text("App version", color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(BuildConfig.VERSION_NAME, color = c.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 if (update != null) {
+                    Spacer(Modifier.width(8.dp))
                     Text(
-                        "New",
+                        "Update",
                         color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.background(UpdatePill, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.background(UpdatePill, RoundedCornerShape(10.dp)).padding(horizontal = 9.dp, vertical = 3.dp),
                     )
-                } else {
-                    Text(BuildConfig.VERSION_NAME, color = c.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.width(6.dp))
                 PhIcon(Ph.CARET_RIGHT, null, c.muted, size = 20.dp)

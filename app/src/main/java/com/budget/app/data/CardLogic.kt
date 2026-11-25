@@ -59,4 +59,12 @@ object CardLogic {
     /** Across cards: on current statements, and what's new since they closed. */
     fun onStatements(r: CardsResponse): Long = r.cards.sumOf { it.status?.dueCents ?: 0L }
     fun sinceStatements(r: CardsResponse): Long = r.cards.sumOf { it.status?.newChargesCents ?: 0L }
+
+    /** "Pay this cycle", as on the web's card table: the amount (null when nothing is due) and its note. */
+    fun payThisCycle(s: CardStatusDto): Pair<Long?, String> = when {
+        s.plan == "paid" || s.suggestedCents <= 0L -> null to "nothing due"
+        s.promoEndsOn != null && s.monthlyCents != null -> s.suggestedCents to "${Money.whole(s.monthlyCents)}/mo clears it by ${Dates.monthYear(s.promoEndsOn)}"
+        s.plan == "statement" -> s.suggestedCents to "in full, no interest"
+        else -> s.suggestedCents to "0% payment"
+    }
 }

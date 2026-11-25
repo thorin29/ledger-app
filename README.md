@@ -4,7 +4,7 @@ The phone app for [Ledger](https://github.com/thorin29/ledger), the self-hosted
 budget planner. It talks to your own Ledger server and nothing else (apart from
 checking this repo for updates).
 
-> **Status:** v0.23.0. Needs Ledger server 0.114.1 or newer.
+> **Status:** v0.24.0. Needs Ledger server 0.114.1 or newer.
 
 ## What it does
 
@@ -13,8 +13,9 @@ Four tabs along the bottom:
 - **Today:** what's safe to send today, the bills balance (tap to update),
   what's free after the month, and the next bills due, each with a record
   button.
-- **Month:** every item by half of the month, anything still owed from
-  earlier, income, and card payments together under Cards. Step back or
+- **Month:** the web Tracker's sections (each half, each paycheck or the
+  whole month, per Pay Settings) with paid and pending, anything still owed
+  from earlier, income, and card payments together under Cards. Step back or
   forward a month.
 - **Plan:** the bills balance walked forward 30–90 days, with the lowest
   point marked, and a slider showing what a payment today would do to it.
@@ -41,7 +42,7 @@ send when it's back.
 **Updates itself:** it checks this repo's releases every time the app opens,
 when it comes back to the front (at most every 30 minutes), and about every
 two hours in the background. When a newer version is out, a blue dot shows on
-the More tab, App version shows "New", and a notification is posted once for
+the More tab, App version shows an Update button, and a notification is posted once for
 that version. The Update screen downloads and installs it.
 
 ## Adding a phone

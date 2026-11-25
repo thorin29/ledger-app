@@ -67,10 +67,19 @@ object Overlay {
                 remainingCents = entries.filter { it.actualCents == null }.sumOf { it.budgetedCents },
             )
         }
+        val periods = view.periods?.map { p ->
+            val entries = p.entries.map(::patch)
+            p.copy(
+                entries = entries,
+                paidCents = entries.sumOf { it.actualCents ?: 0L },
+                remainingCents = entries.filter { it.actualCents == null }.sumOf { it.budgetedCents },
+            )
+        }
         val balance = pending.lastOrNull { it.type == PendingWrite.BALANCE && it.year == view.year && it.month == view.month }
 
         return view.copy(
             halves = halves,
+            periods = periods,
             carried = view.carried.map(::patch),
             income = view.income.map(::patch),
             surplusItems = view.surplusItems.map(::patch),

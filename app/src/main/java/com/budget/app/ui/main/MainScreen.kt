@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.semantics.contentDescription
+import com.budget.app.data.ReviewDot
 import com.budget.app.data.Settings
 import com.budget.app.ui.settings.UpdateScreen
 import com.budget.app.ui.theme.UpdateDot
@@ -213,6 +214,16 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
     // A server older than the phone views: the earlier screens, as before.
     val legacy = phone.unsupported && phone.today == null
 
+    // More's amber dot: review items that came in since Review was last opened.
+    val reviewCount = ReviewDot.count(phone.today?.needsYou?.firstOrNull { it.kind == "review" }?.text)
+    val seenText by remember { container.settings.observe(Settings.REVIEW_SEEN) }.collectAsState(initial = null)
+    val reviewSeen = seenText?.toIntOrNull()
+    val reviewOpen = tab == Tab.MORE && more == MoreScreenKind.REVIEW
+    LaunchedEffect(reviewCount, reviewSeen, reviewOpen, phone.today) {
+        if (phone.today == null) return@LaunchedEffect
+        ReviewDot.nextSeen(reviewCount, reviewSeen, reviewOpen)?.let { container.settings.set(Settings.REVIEW_SEEN, it.toString()) }
+    }
+
     Column(Modifier.fillMaxSize().background(c.background)) {
         com.budget.app.ui.common.PullRefresh(
             refreshing = pulled,
@@ -317,12 +328,12 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
                             phoneVm.loadTransactions()
                         },
                         onOpenNotifications = { more = MoreScreenKind.NOTIFICATIONS },
-                        reviewCount = phone.today?.needsYou?.firstOrNull { it.kind == "review" }?.let { n -> n.text.takeWhile { ch -> ch.isDigit() }.toIntOrNull() } ?: 0,
+                        reviewCount = reviewCount,
                     )
                 }
             }
         }
-        val reviewWaiting = phone.today?.needsYou?.any { it.kind == "review" } == true
+        val reviewWaiting = ReviewDot.waiting(reviewCount, reviewSeen)
         BottomBar(tab, updateAvailable = update != null, reviewWaiting = reviewWaiting, onSelect = {
             if (it == Tab.MORE && it == tab) more = MoreScreenKind.NONE
             tab = it

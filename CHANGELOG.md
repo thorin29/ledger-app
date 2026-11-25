@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.24.0]
+
+Needs server 0.114.1.
+
+- **Cards:** the stack stays, with Card Details under it as on the web: what to pay this cycle ("in
+  full, no interest", "clears it by…", "nothing due"), then balance, statement with its due date,
+  and new since the statement. The per-card spending bars are only in Insights › Budget now.
+- **Tracker:** each section has the web's paid and pending line with a bar. Follows Pay Settings:
+  one section per paycheck, or the whole month, when set that way.
+- **More:** one App Version row, with an Update button when there's a new version (blue, not
+  teal). The amber dot only shows for review items that came in since Review was last opened.
+
 ## [0.23.0]
 
 Needs server 0.114.1.

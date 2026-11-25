@@ -41,6 +41,7 @@ import com.budget.app.data.Dates
 import com.budget.app.data.EntryStatuses
 import com.budget.app.data.Money
 import com.budget.app.data.MonthLogic
+import com.budget.app.data.MonthSections
 import com.budget.app.data.remote.MonthEntry
 import com.budget.app.data.sync.Overlay
 import com.budget.app.ui.common.Banner
@@ -51,12 +52,7 @@ import com.budget.app.ui.theme.Ph
 import com.budget.app.ui.theme.PhIcon
 import java.time.YearMonth
 
-private data class Group(val key: String, val title: String, val danger: Boolean, val rows: List<MonthEntry>, val cards: Boolean = false)
-
-/**
- * Every item in a month, grouped as on the web: owed from earlier, each half, left-over, income,
- * then card payments together in Cards (taken out of the other groups).
- */
+/** Every item in a month, in the web's sections (see [MonthSections]). */
 @Composable
 fun MonthScreen(vm: MonthViewModel, onRecord: (MonthEntry?) -> Unit) {
     val c = Budget.colors
@@ -65,19 +61,7 @@ fun MonthScreen(vm: MonthViewModel, onRecord: (MonthEntry?) -> Unit) {
     val view = remember(ui.view, pending) { ui.view?.let { Overlay.apply(it, pending) } }
     val isCurrent = YearMonth.now() == YearMonth.of(ui.year, ui.month)
 
-    val groups = remember(view) {
-        if (view == null) emptyList() else buildList {
-            val bills = { rows: List<MonthEntry> -> rows.filterNot { it.isCardPayment } }
-            val cards = (view.carried + view.halves.flatMap { it.entries } + view.surplusItems)
-                .filter { it.isCardPayment }
-                .distinctBy { "${it.lineItemId}-${it.year}-${it.month}" }
-            if (bills(view.carried).isNotEmpty()) add(Group("carried", "Still owed from earlier", true, bills(view.carried)))
-            view.halves.forEach { h -> add(Group("half-${h.half.index}", h.half.label.ifBlank { "Half ${h.half.index + 1}" }, false, bills(h.entries))) }
-            if (bills(view.surplusItems).isNotEmpty()) add(Group("surplus", "Paid from what's left over", false, bills(view.surplusItems)))
-            if (view.income.isNotEmpty()) add(Group("income", "Income", false, view.income))
-            if (cards.isNotEmpty()) add(Group("cards", "Cards", false, cards, cards = true))
-        }
-    }
+    val groups = remember(view) { view?.let { MonthSections.of(it) } ?: emptyList() }
 
     Box(Modifier.fillMaxSize().background(c.background)) {
         LazyColumn(
@@ -141,10 +125,10 @@ fun MonthScreen(vm: MonthViewModel, onRecord: (MonthEntry?) -> Unit) {
                                 .background(c.surface, RoundedCornerShape(18.dp))
                                 .border(1.dp, c.line, RoundedCornerShape(18.dp)),
                         ) {
-                            if (g.cards) CardsSummary(g.rows)
+                            g.lead?.let { SectionSummary(it, g.rest, g.done, g.total) }
                             if (g.rows.isEmpty()) Text("Nothing here.", color = c.muted, modifier = Modifier.padding(16.dp))
                             g.rows.forEachIndexed { i, e ->
-                                if (i > 0 || g.cards) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+                                if (i > 0 || g.lead != null) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                                 MonthRow(e, onClick = { onRecord(e) })
                             }
                         }
@@ -165,20 +149,23 @@ fun MonthScreen(vm: MonthViewModel, onRecord: (MonthEntry?) -> Unit) {
     }
 }
 
-/** "$4,789.00 paid of $4,480.00 planned" with a bar. A balance transfer's $0 line isn't planned. */
+/** A section's line ("$1,640.00 paid · $210.00 pending") with its bar, as on the web. */
 @Composable
-private fun CardsSummary(rows: List<MonthEntry>) {
+private fun SectionSummary(lead: String, rest: String, done: Long, total: Long) {
     val c = Budget.colors
-    val paid = rows.sumOf { it.actualCents ?: 0L }
-    val planned = rows.filterNot { it.paidNote != null && (it.actualCents ?: 0L) == 0L }.sumOf { it.budgetedCents }
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(Money.format(paid), color = c.ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text(" paid of ${Money.format(planned)} planned", color = c.muted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        }
-        Box(Modifier.fillMaxWidth().height(6.dp).background(c.raised, RoundedCornerShape(3.dp))) {
-            val share = if (planned > 0) (paid.toFloat() / planned).coerceIn(0f, 1f) else if (paid > 0) 1f else 0f
-            if (share > 0f) Box(Modifier.fillMaxWidth(share).fillMaxHeight().background(c.accent, RoundedCornerShape(3.dp)))
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = c.ink, fontWeight = FontWeight.Bold)) { append(lead) }
+                withStyle(SpanStyle(color = c.muted)) { append(rest) }
+            },
+            fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+        )
+        if (total > 0) {
+            Box(Modifier.fillMaxWidth().height(6.dp).background(c.raised, RoundedCornerShape(3.dp))) {
+                val share = (done.toFloat() / total).coerceIn(0f, 1f)
+                if (share > 0f) Box(Modifier.fillMaxWidth(share).fillMaxHeight().background(c.accent, RoundedCornerShape(3.dp)))
+            }
         }
     }
 }

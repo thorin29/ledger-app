@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-/** The Cards tab: the stack, each card's payment, and the reminder setting. */
+/** The Cards tab: the main statement, the stack, each card's details under it (as on the web), and reminders. */
 @Composable
 fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable () -> Unit)? = null) {
     val c = Budget.colors
@@ -91,6 +91,7 @@ fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable 
             else -> {
                 if (header != null) item { header() }
                 item { CardStack(cards) }
+                item { com.budget.app.ui.common.SectionLabel("Card Details", c.muted) }
                 item {
                     Column(
                         Modifier
@@ -98,15 +99,9 @@ fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable 
                             .background(c.surface, RoundedCornerShape(20.dp))
                             .border(1.dp, c.line, RoundedCornerShape(20.dp)),
                     ) {
-                        val budgets = extras.insights?.budget?.cardBudget?.cards?.associateBy { it.id } ?: emptyMap()
                         cards.cards.forEachIndexed { i, card ->
                             if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                             CardRow(card)
-                            budgets[card.id]?.let { b ->
-                                Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp)) {
-                                    com.budget.app.ui.insights.CardBudgetRow(b, null, showName = false)
-                                }
-                            }
                         }
                     }
                 }
@@ -148,48 +143,58 @@ fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable 
     }
 }
 
+/** One card, as a row of the web's card table: what to pay this cycle, then balance, statement and since. */
 @Composable
 private fun CardRow(card: CardDto) {
     val c = Budget.colors
     val s = card.status
     val today = LocalDate.now()
     val dueIn = s?.nextDue?.let { runCatching { ChronoUnit.DAYS.between(today, LocalDate.parse(it)) }.getOrNull() }
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MiniCard(card)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(CardLogic.faceName(card.name), color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                when {
-                    s == null -> "Balance ${Money.whole(card.owedNowCents)} · add its days on the web"
-                    s.promoEndsOn != null && s.monthlyCents != null -> "${Money.whole(s.monthlyCents)}/mo clears it by ${Dates.monthYear(s.promoEndsOn)}"
-                    s.plan == "payoff" || s.paymentsLeft != null -> "0% · ${s.paymentsLeft ?: "?"} payments left"
-                    else -> "Statement ${Money.whole(s.dueCents)} · new ${Money.whole(s.newChargesCents)}"
-                },
-                color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                s?.let { Money.format(it.suggestedCents) } ?: Money.format(card.owedNowCents),
-                color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-            )
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            MiniCard(card)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(CardLogic.faceName(card.name), color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                card.institution?.let { Text(it, color = c.muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
             if (s != null) {
-                val paid = s.suggestedCents <= 0L
-                Text(
-                    if (paid) "Paid this cycle" else "Due ${Dates.short(s.nextDue) ?: s.nextDue}",
-                    color = when {
-                        paid -> c.accent
-                        dueIn != null && dueIn <= 7 -> c.warn
-                        else -> c.muted
-                    },
-                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                )
+                val (cents, note) = CardLogic.payThisCycle(s)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(cents?.let { Money.format(it) } ?: "—", color = c.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    if (cents != null && note.length <= 22) Text(note, color = c.muted, fontSize = 12.sp, maxLines = 1)
+                    if (cents == null) Text(note, color = c.muted, fontSize = 12.sp, maxLines = 1)
+                }
             }
         }
+        Row(Modifier.fillMaxWidth().padding(start = 64.dp, top = 10.dp)) {
+            Detail("Balance", Money.whole(card.owedNowCents), null, Modifier.weight(1f))
+            if (s != null) {
+                Detail(
+                    "Statement", Money.whole(s.dueCents),
+                    if (s.dueCents > 0) "due ${Dates.short(s.nextDue) ?: s.nextDue}" else null,
+                    Modifier.weight(1f),
+                    warn = s.dueCents > 0 && dueIn != null && dueIn <= 7,
+                )
+                Detail("Since", Money.whole(s.newChargesCents), null, Modifier.weight(1f))
+            } else {
+                Text("Add its days on the web", color = c.muted, fontSize = 12.sp, modifier = Modifier.weight(2f))
+            }
+        }
+        // A long note (a 0% card's pace) gets its own line.
+        s?.let { CardLogic.payThisCycle(it) }?.let { (cents, note) ->
+            if (cents != null && note.length > 22) Text(note, color = c.muted, fontSize = 12.sp, modifier = Modifier.padding(start = 64.dp, top = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun Detail(label: String, value: String, sub: String?, modifier: Modifier, warn: Boolean = false) {
+    val c = Budget.colors
+    Column(modifier) {
+        Text(label.uppercase(), color = c.muted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp, maxLines = 1)
+        Text(value, color = c.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        sub?.let { Text(it, color = if (warn) c.warn else c.muted, fontSize = 11.sp, fontWeight = if (warn) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1) }
     }
 }
 

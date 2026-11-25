@@ -115,6 +115,25 @@ data class MonthView(
     val totalBudgetedCents: Long = 0,
     val totalPaidCents: Long = 0,
     val totalRemainingCents: Long = 0,
+    /** Pay Settings › one section per paycheck (server 0.95+); null otherwise. */
+    val periods: List<PayPeriodDto>? = null,
+    /** Pay Settings › not divided: one section for the month. */
+    val wholeMonth: Boolean = false,
+)
+
+@Serializable
+data class PayPeriodDto(
+    val start: String = "",
+    val end: String = "",
+    val payday: String? = null,
+    /** A section that continues the last paycheck of the month before. */
+    val fromPayday: String? = null,
+    val incomeCents: Long = 0,
+    val entries: List<MonthEntry> = emptyList(),
+    val budgetedCents: Long = 0,
+    val paidCents: Long = 0,
+    val remainingCents: Long = 0,
+    val current: Boolean = false,
 )
 
 @Serializable
