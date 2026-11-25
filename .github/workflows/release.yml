@@ -75,8 +75,8 @@ jobs:
           cp "$APK" "budget-$VNAME.apk"
 
           # What the app reads to decide whether to offer an update.
-          jq -n --argjson vc "$VCODE" --arg vn "$VNAME" --rawfile notes notes.md \
-            '{versionCode:$vc, versionName:$vn, notes:$notes}' > latest.json
+          jq -n --argjson vc "$VCODE" --arg vn "$VNAME" --rawfile notes notes.md --arg tag "$TAG" --arg apk "budget-$VNAME.apk" \
+            '{versionCode:$vc, versionName:$vn, notes:$notes, tag:$tag, apk:$apk}' > latest.json
           cat latest.json
 
       - name: Publish GitHub Release
