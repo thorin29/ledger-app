@@ -29,7 +29,7 @@ enum class Ph(@param:DrawableRes val res: Int) {
     BACKSPACE(R.drawable.ph_backspace), CHECK(R.drawable.ph_check),
     CHART_BAR(R.drawable.ph_chart_bar), OPEN_OUT(R.drawable.ph_arrow_square_out), SEND(R.drawable.ph_paper_plane_tilt),
     CONTRAST(R.drawable.ph_circle_half), DOWNLOAD(R.drawable.ph_download_simple), SIGN_OUT(R.drawable.ph_sign_out),
-    SHIELD(R.drawable.ph_shield_check), WARNING(R.drawable.ph_warning_circle), BELL(R.drawable.ph_bell),
+    SHIELD(R.drawable.ph_shield_check), WARNING(R.drawable.ph_warning_circle), BELL(R.drawable.ph_bell), HAND_COINS(R.drawable.ph_hand_coins),
     LIGHTNING(R.drawable.ph_lightning), DROP(R.drawable.ph_drop), WIFI(R.drawable.ph_wifi_high),
     PHONE(R.drawable.ph_device_mobile), CAR(R.drawable.ph_car), BARBELL(R.drawable.ph_barbell),
     CARD(R.drawable.ph_credit_card), CARD_FILL(R.drawable.ph_credit_card_fill),

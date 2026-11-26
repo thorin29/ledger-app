@@ -82,6 +82,7 @@ fun MoreScreen(
     onOpenPlan: () -> Unit = {},
     onOpenReview: () -> Unit = {},
     onOpenTransactions: () -> Unit = {},
+    onOpenOwed: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     reviewCount: Int = 0,
 ) {
@@ -158,6 +159,8 @@ fun MoreScreen(
             Item(Ph.CHECK_CIRCLE, "Review", value = if (reviewCount > 0) reviewCount.toString() else "", onClick = onOpenReview)
             Divider()
             Item(Ph.LIST, "Transactions", onClick = onOpenTransactions)
+            Divider()
+            Item(Ph.HAND_COINS, "Owed to You", onClick = onOpenOwed)
             Divider()
             Item(Ph.BELL, "Notifications", onClick = onOpenNotifications)
             Divider()

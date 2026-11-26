@@ -8,6 +8,7 @@ import com.budget.app.data.remote.BudgetResponse
 import com.budget.app.data.remote.CategoryDto
 import com.budget.app.data.remote.OverviewResponse
 import com.budget.app.data.remote.TodayResponse
+import com.budget.app.data.remote.OwedPersonDto
 import com.budget.app.data.remote.TxnDto
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,8 @@ data class PhoneUi(
     val txnFilter: String = "all",
     val txnSearch: String = "",
     val categories: List<CategoryDto> = emptyList(),
+    /** Owed to You; null until loaded. */
+    val owed: List<OwedPersonDto>? = null,
     val loading: Boolean = false,
     /** Set when the server is older than these views (0.101). */
     val unsupported: Boolean = false,
@@ -114,6 +117,31 @@ class PhoneViewModel(private val c: AppContainer) : ViewModel() {
             loadTransactions()
         }
     }
+
+    fun loadOwed() {
+        viewModelScope.launch { fetch { c.api.owed() }?.let { r -> _ui.update { it.copy(owed = r.people) } } }
+    }
+
+    /** Link, unlink or "not this" on Owed to You, then a fresh copy. */
+    fun owedAction(done: String, call: suspend () -> Unit) {
+        viewModelScope.launch {
+            val note = try {
+                call()
+                done
+            } catch (e: ApiException) {
+                if (e.status == 404) "Ledger on the server needs updating for this." else e.message ?: "The server refused that."
+            } catch (e: IOException) {
+                "You're offline. Try again when you're back."
+            }
+            _ui.update { it.copy(message = note) }
+            loadOwed()
+            loadToday()
+        }
+    }
+
+    fun linkPayback(personId: String, txnId: String, keys: List<String>) = owedAction("Linked.") { c.api.linkPayback(personId, txnId, keys) }
+    fun unlinkPayback(txnId: String) = owedAction("Unlinked.") { c.api.unlinkPayback(txnId) }
+    fun dismissPayback(personId: String, txnId: String) = owedAction("Won't suggest that one again.") { c.api.dismissPayback(personId, txnId) }
 
     fun clearMessage() = _ui.update { it.copy(message = null) }
 

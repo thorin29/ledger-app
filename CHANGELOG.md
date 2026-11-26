@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.26.0]
+
+Needs server 0.116.0.
+
+- **Transactions:** tapping one opens a full page instead of a sheet: the category in a dropdown,
+  "This charge" or "All from …", Save category, a Not spending (transfer) switch, and Someone owes me
+  (who, how much, Half, All) or, for money in, Paid back by.
+- **Owed to You** in More: who owes what, and for each person their open charges (tick any),
+  payments that add up to some of them (Link, Not this), and what's been paid back (Unlink).
+- **Review:** Paid back? lists Zelle, Venmo, PayPal and transfer money in that adds up exactly to
+  someone's charges, to approve.
+
 ## [0.25.0]
 
 Needs server 0.115.0.

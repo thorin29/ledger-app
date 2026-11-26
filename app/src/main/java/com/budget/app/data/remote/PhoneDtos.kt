@@ -161,6 +161,46 @@ data class OwedDto(val personId: String = "", val personName: String = "", val c
 @Serializable
 data class PersonDto(val id: String = "", val name: String = "")
 
+/** Owed to You (server 0.116+). */
+@Serializable
+data class OwedResponse(val people: List<OwedPersonDto> = emptyList())
+
+@Serializable
+data class OwedPersonDto(
+    val id: String = "",
+    val name: String = "",
+    val charges: List<OwedChargeDto> = emptyList(),
+    val paybacks: List<OwedPaybackDto> = emptyList(),
+    val markedCents: Long = 0,
+    val paidCents: Long = 0,
+    /** Still owed; negative when they've paid ahead. */
+    val openCents: Long = 0,
+    /** Money in that adds up exactly to some open charges. */
+    val matches: List<OwedMatchDto> = emptyList(),
+    /** Other money in that could be theirs. */
+    val maybe: List<OwedMatchDto> = emptyList(),
+)
+
+@Serializable
+data class OwedChargeDto(
+    val key: String = "",
+    val txnId: String = "",
+    val postedOn: String = "",
+    val merchant: String = "",
+    val categoryName: String? = null,
+    val cents: Long = 0,
+    val coveredCents: Long = 0,
+) {
+    val open: Boolean get() = coveredCents < cents
+    val leftCents: Long get() = cents - coveredCents
+}
+
+@Serializable
+data class OwedPaybackDto(val txnId: String = "", val postedOn: String = "", val merchant: String = "", val cents: Long = 0, val linkedCents: Long = 0)
+
+@Serializable
+data class OwedMatchDto(val txnId: String = "", val postedOn: String = "", val merchant: String = "", val cents: Long = 0, val chargeKeys: List<String> = emptyList())
+
 @Serializable
 data class TxnSplitDto(val categoryId: String? = null, val categoryName: String? = null, val amountCents: Long = 0, val note: String? = null)
 

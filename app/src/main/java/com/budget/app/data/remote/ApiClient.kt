@@ -248,6 +248,27 @@ class ApiClient(
     suspend fun addPerson(name: String): PersonDto =
         decode(send("POST", "/api/v1/people", body = buildJsonObject { put("name", name) }.toString()))
 
+    /** Owed to You: each person's charges, payments back and payments that may be theirs (server 0.116+). */
+    suspend fun owed(): OwedResponse = decode(send("GET", "/api/v1/owed"))
+
+    /** Ties a payment back to charges and puts it in the person's name. */
+    suspend fun linkPayback(personId: String, txnId: String, chargeKeys: List<String>) {
+        val body = buildJsonObject {
+            put("personId", personId)
+            put("txnId", txnId)
+            put("chargeKeys", kotlinx.serialization.json.JsonArray(chargeKeys.map { kotlinx.serialization.json.JsonPrimitive(it) }))
+        }.toString()
+        send("POST", "/api/v1/owed/link", body = body)
+    }
+
+    suspend fun unlinkPayback(txnId: String) {
+        send("POST", "/api/v1/owed/unlink", body = buildJsonObject { put("txnId", txnId) }.toString())
+    }
+
+    suspend fun dismissPayback(personId: String, txnId: String) {
+        send("POST", "/api/v1/owed/dismiss", body = buildJsonObject { put("personId", personId); put("txnId", txnId) }.toString())
+    }
+
     suspend fun setTransfer(transactionId: String, on: Boolean): CategoryChangeResponse {
         val body = buildJsonObject { put("transfer", on) }.toString()
         return decode(send("PUT", "/api/v1/transactions/" + java.net.URLEncoder.encode(transactionId, "UTF-8"), body = body))

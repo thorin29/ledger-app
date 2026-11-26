@@ -84,7 +84,7 @@ enum class Tab(val label: String, val icon: Ph, val iconOn: Ph) {
 private data class RecordRequest(val vm: MonthViewModel, val entry: MonthEntry?)
 
 /** What's open over More: one of its screens, or More itself. */
-private enum class MoreScreenKind { NONE, REVIEW, TRANSACTIONS, NOTIFICATIONS, UPDATE, PLAN }
+private enum class MoreScreenKind { NONE, REVIEW, TRANSACTIONS, OWED, NOTIFICATIONS, UPDATE, PLAN }
 
 /** Signed in: five tabs along the bottom, and the record sheet over any of them. */
 @Composable
@@ -312,6 +312,16 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
                         onCategorize = { t, cat, all, transfer -> phoneVm.categorize(t, cat, all, transfer) },
                         onOwed = { t, person, newName, cents -> phoneVm.setOwed(t, person, newName, cents) },
                     )
+                    MoreScreenKind.OWED -> com.budget.app.ui.phone.OwedScreen(
+                        ui = phone,
+                        onBack = {
+                            more = MoreScreenKind.NONE
+                            phoneVm.clearMessage()
+                        },
+                        onLink = { person, txn, keys -> phoneVm.linkPayback(person, txn, keys) },
+                        onUnlink = { txn -> phoneVm.unlinkPayback(txn) },
+                        onDismiss = { person, txn -> phoneVm.dismissPayback(person, txn) },
+                    )
                     MoreScreenKind.NOTIFICATIONS -> NotificationsScreen(container, onBack = { more = MoreScreenKind.NONE })
                     MoreScreenKind.NONE -> MoreScreen(
                         container, session,
@@ -327,6 +337,11 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
                         onOpenTransactions = {
                             more = MoreScreenKind.TRANSACTIONS
                             phoneVm.loadTransactions()
+                        },
+                        onOpenOwed = {
+                            more = MoreScreenKind.OWED
+                            phoneVm.clearMessage()
+                            phoneVm.loadOwed()
                         },
                         onOpenNotifications = { more = MoreScreenKind.NOTIFICATIONS },
                         reviewCount = reviewCount,

@@ -271,7 +271,24 @@ data class ReviewResponse(
     val recorded: List<AutoRecordedDto> = emptyList(),
     val moved: List<DueDayMovedDto> = emptyList(),
     val count: Int = 0,
+    /** Server 0.116+: money in that adds up to someone's charges, to approve. */
+    val paybacks: List<PaybackDto> = emptyList(),
 )
+
+@Serializable
+data class PaybackDto(
+    val personId: String = "",
+    val personName: String = "",
+    val txnId: String = "",
+    val postedOn: String = "",
+    val merchant: String = "",
+    val cents: Long = 0,
+    val chargeKeys: List<String> = emptyList(),
+    val charges: List<PaybackChargeDto> = emptyList(),
+)
+
+@Serializable
+data class PaybackChargeDto(val postedOn: String = "", val merchant: String = "", val cents: Long = 0)
 
 // ------------------------------------------------------------ the month's spending plan (server 0.43+)
 

@@ -110,6 +110,10 @@ class ExtrasViewModel(private val c: AppContainer) : ViewModel() {
 
     fun dismiss(item: LooksPaidDto) = act("Won't suggest that charge for ${item.billName} again.") { c.api.dismissReview(item) }
 
+    fun approvePayback(item: com.budget.app.data.remote.PaybackDto) = act("Linked to ${item.personName}.") { c.api.linkPayback(item.personId, item.txnId, item.chargeKeys) }
+
+    fun dismissPayback(item: com.budget.app.data.remote.PaybackDto) = act("Won't suggest that payment for ${item.personName} again.") { c.api.dismissPayback(item.personId, item.txnId) }
+
     fun addRepeat(item: RepeatDto) = act("Added ${item.merchant} as a monthly bill. Edit it on Plan if anything's off.") { c.api.repeat(item.key, "add") }
 
     fun chargeAsBill(transactionId: String, name: String) = act("Added $name as a monthly bill. Change it on Plan if anything's off.") { c.api.chargeAsBill(transactionId) }

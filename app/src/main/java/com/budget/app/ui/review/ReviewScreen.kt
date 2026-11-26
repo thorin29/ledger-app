@@ -88,7 +88,7 @@ fun ReviewScreen(vm: ExtrasViewModel, onBack: () -> Unit) {
         if (review == null) {
             item { Text("Nothing to show. The Review list needs the server to be reachable.", color = c.muted, modifier = Modifier.padding(4.dp)) }
         } else {
-            if (review.looksPaid.isEmpty() && review.recorded.isEmpty() && review.repeats == 0) {
+            if (review.looksPaid.isEmpty() && review.recorded.isEmpty() && review.repeats == 0 && review.paybacks.isEmpty()) {
                 item { Text("All caught up. New suggestions appear after each bank sync.", color = c.muted, modifier = Modifier.padding(4.dp)) }
             }
 
@@ -115,6 +115,13 @@ fun ReviewScreen(vm: ExtrasViewModel, onBack: () -> Unit) {
                             )
                         }
                     }
+                }
+            }
+
+            if (review.paybacks.isNotEmpty()) {
+                item { SectionLabel("Paid back?", c.muted) }
+                items(review.paybacks, key = { "payback-${it.personId}-${it.txnId}" }) { p ->
+                    PaybackRow(p, busy = ui.busy, onYes = { vm.approvePayback(p) }, onNotThis = { vm.dismissPayback(p) })
                 }
             }
 
@@ -212,6 +219,34 @@ private fun ordinal(n: Int): String = n.toString() + when {
     n % 10 == 2 -> "nd"
     n % 10 == 3 -> "rd"
     else -> "th"
+}
+
+/** Money in that adds up exactly to someone's charges: link it, or not. */
+@Composable
+private fun PaybackRow(p: com.budget.app.data.remote.PaybackDto, busy: Boolean, onYes: () -> Unit, onNotThis: () -> Unit) {
+    val c = Budget.colors
+    Panel {
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text("${p.personName} paid you back?", color = c.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(listOf(Dates.short(p.postedOn) ?: p.postedOn, p.merchant).joinToString(" · "), color = c.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text("+" + Money.format(p.cents), color = c.ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        Text(
+            "= " + p.charges.joinToString(" + ") { "${Dates.short(it.postedOn) ?: it.postedOn} ${it.merchant} ${Money.format(it.cents)}" },
+            color = c.muted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 8.dp).fillMaxWidth().background(c.raised, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+        )
+        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onYes,
+                enabled = !busy,
+                colors = ButtonDefaults.buttonColors(containerColor = c.accent, contentColor = c.onAccent),
+            ) { Text("Yes, link it", fontWeight = FontWeight.Bold) }
+            OutlinedButton(onClick = onNotThis, enabled = !busy) { Text("Not this", color = c.ink) }
+        }
+    }
 }
 
 @Composable

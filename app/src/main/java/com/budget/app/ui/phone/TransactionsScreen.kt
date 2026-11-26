@@ -6,8 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,6 +62,23 @@ fun TransactionsScreen(
     val names = remember(ui.categories) { ui.categories.associate { it.id to it.name } }
     val byDay = remember(ui.transactions) { ui.transactions.groupBy { it.postedOn } }
 
+    editing?.let { t ->
+        TransactionPage(
+            txn = t,
+            categories = ui.categories,
+            onBack = { editing = null },
+            onPick = { categoryId, forMerchant, transfer ->
+                editing = null
+                onCategorize(t, categoryId, forMerchant, transfer)
+            },
+            onOwed = { person, newName, cents ->
+                editing = null
+                onOwed(t, person, newName, cents)
+            },
+        )
+        return
+    }
+
     Column(Modifier.fillMaxSize().background(c.background).statusBarsPadding()) {
         Column(Modifier.padding(start = 8.dp, end = 16.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -109,21 +124,6 @@ fun TransactionsScreen(
 
     opened?.let { t -> ItemsSheet(t, onDismiss = { opened = null }) }
 
-    editing?.let { t ->
-        CategorySheet(
-            txn = t,
-            categories = ui.categories,
-            onDismiss = { editing = null },
-            onPick = { categoryId, forMerchant, transfer ->
-                editing = null
-                onCategorize(t, categoryId, forMerchant, transfer)
-            },
-            onOwed = { person, newName, cents ->
-                editing = null
-                onOwed(t, person, newName, cents)
-            },
-        )
-    }
 }
 
 @Composable
@@ -194,163 +194,4 @@ private fun ItemsSheet(txn: TxnDto, onDismiss: () -> Unit) {
             Note("Change item categories on the web.")
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-private fun CategorySheet(
-    txn: TxnDto,
-    categories: List<CategoryDto>,
-    onDismiss: () -> Unit,
-    onPick: (String?, Boolean, Boolean) -> Unit,
-    onOwed: (String?, String?, Long?) -> Unit,
-) {
-    val c = Budget.colors
-    var picked by remember { mutableStateOf(txn.categoryId) }
-    var transfer by remember { mutableStateOf(txn.kind == "TRANSFER") }
-    val people = categories.filter { it.managedForOthers }
-    val budgetCats = categories.filterNot { it.managedForOthers }
-    val charge = txn.kind == "NORMAL" && txn.amountCents < 0 && !txn.pending && people.none { it.id == txn.categoryId }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = c.surface) {
-        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(Modifier.fillMaxWidth()) {
-                Column(Modifier.weight(1f)) {
-                    Text(txn.merchant, color = c.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Note("${Dates.short(txn.postedOn)} · ${txn.account}")
-                }
-                Text((if (txn.amountCents > 0) "+" else "−") + Money.format(kotlin.math.abs(txn.amountCents)), color = c.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            }
-            Label("Category")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                budgetCats.forEach { cat ->
-                    Choice(cat.name, !transfer && picked == cat.id) {
-                        picked = cat.id
-                        transfer = false
-                    }
-                }
-                Choice("Transfer (not spending)", transfer) { transfer = true }
-            }
-            // Money back from someone goes in their name.
-            if (!charge && people.isNotEmpty()) {
-                Label("Paid back by")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    people.forEach { p ->
-                        Choice(p.name, !transfer && picked == p.id) {
-                            picked = p.id
-                            transfer = false
-                        }
-                    }
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val ready = transfer || picked != null
-                Text(
-                    "This one",
-                    color = if (ready) c.ink else c.muted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .weight(1f)
-                        .border(1.dp, c.line, RoundedCornerShape(12.dp))
-                        .clickable(role = Role.Button, enabled = ready) { onPick(picked, false, transfer) }
-                        .padding(vertical = 13.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-                if (!transfer && !txn.peer) {
-                    Text(
-                        "All from ${txn.merchant}",
-                        color = c.onAccent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(1.4f)
-                            .background(if (ready) c.accent else c.muted, RoundedCornerShape(12.dp))
-                            .clickable(role = Role.Button, enabled = ready) { onPick(picked, true, false) }
-                            .padding(vertical = 13.dp, horizontal = 8.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
-            }
-            if (charge) OwedSection(txn, people, onOwed)
-        }
-    }
-}
-
-/** "Someone owes me": who, and how much of the charge. Their share leaves your spending. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun OwedSection(txn: TxnDto, people: List<CategoryDto>, onOwed: (String?, String?, Long?) -> Unit) {
-    val c = Budget.colors
-    val total = kotlin.math.abs(txn.amountCents)
-    var person by remember { mutableStateOf(txn.owed?.personId) }
-    var adding by remember { mutableStateOf(false) }
-    var newName by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf(String.format(java.util.Locale.US, "%.2f", (txn.owed?.cents ?: total) / 100.0)) }
-    val cents = amount.replace(",", "").replace("$", "").toDoubleOrNull()?.let { Math.round(it * 100) }
-    val ready = (person != null || (adding && newName.isNotBlank())) && cents != null && cents in 1..total
-    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
-    Label("Someone owes me")
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        people.forEach { p ->
-            Choice(p.name, !adding && person == p.id) {
-                person = p.id
-                adding = false
-            }
-        }
-        Choice("New person…", adding) {
-            adding = true
-            person = null
-        }
-    }
-    if (adding) {
-        OutlinedTextField(value = newName, onValueChange = { newName = it.take(40) }, placeholder = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-            value = amount,
-            onValueChange = { amount = it },
-            leadingIcon = { Text("$") },
-            singleLine = true,
-            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
-            modifier = Modifier.weight(1f),
-        )
-        Choice("Half", false) { amount = String.format(java.util.Locale.US, "%.2f", Math.round(total / 2.0) / 100.0) }
-        Choice("All", false) { amount = String.format(java.util.Locale.US, "%.2f", total / 100.0) }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (txn.owed != null) {
-            Text(
-                "Remove",
-                color = c.ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .weight(1f)
-                    .border(1.dp, c.line, RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button) { onOwed(null, null, null) }
-                    .padding(vertical = 13.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
-        }
-        Text(
-            "Save who owes me",
-            color = c.onAccent, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .weight(1.4f)
-                .background(if (ready) c.accent else c.muted, RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, enabled = ready) { onOwed(if (adding) null else person, if (adding) newName else null, cents) }
-                .padding(vertical = 13.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun Choice(label: String, on: Boolean, onClick: () -> Unit) {
-    val c = Budget.colors
-    Text(
-        label,
-        color = if (on) c.surface else c.ink,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier
-            .background(if (on) c.ink else c.surface, RoundedCornerShape(50))
-            .border(1.dp, if (on) c.ink else c.line, RoundedCornerShape(50))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
-    )
 }
