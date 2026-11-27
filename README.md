@@ -4,7 +4,7 @@ The phone app for [Ledger](https://github.com/thorin29/ledger), the self-hosted
 budget planner. It talks to your own Ledger server and nothing else (apart from
 checking this repo for updates).
 
-> **Status:** v0.26.0. Needs Ledger server 0.116.0 or newer.
+> **Status:** v0.27.0. Needs Ledger server 0.117.0 or newer.
 
 ## What it does
 
@@ -19,6 +19,9 @@ Four tabs along the bottom:
   forward a month.
 - **Plan:** the bills balance walked forward 30–90 days, with the lowest
   point marked, and a slider showing what a payment today would do to it.
+- **Loyalty cards** (Cards › Loyalty): the household's store cards. Tap one to show its
+  barcode at full brightness; add one by scanning its barcode. Long-press the app icon for Loyalty
+  Cards and the cards used most. They're kept on the phone, so they show with no signal.
 - **Owed to You** (More): who owes what; for each person, their open charges, payments that
   add up to some of them (Link), and what's been paid back.
 - **More:** what's waiting to send, a link to the web for year reports,

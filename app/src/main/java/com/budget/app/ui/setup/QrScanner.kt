@@ -44,7 +44,6 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
 import com.google.zxing.MultiFormatReader
-import com.google.zxing.NotFoundException
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
@@ -57,7 +56,23 @@ import java.util.concurrent.atomic.AtomicBoolean
  * caller asks for first. Calls [onCode] once with the code's text.
  */
 @Composable
-fun QrScanner(onCode: (String) -> Unit, onClose: () -> Unit) {
+fun QrScanner(onCode: (String) -> Unit, onClose: () -> Unit) = BarcodeScanner(
+    formats = listOf(BarcodeFormat.QR_CODE),
+    hint = "Point at the QR code under Settings → Sign-in & people → Add a phone on the web.",
+    onCode = { text, _ -> onCode(text) },
+    onClose = onClose,
+)
+
+/** Every barcode type store cards use; what the loyalty card scanner looks for. */
+val CARD_FORMATS = listOf(
+    BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.CODE_93, BarcodeFormat.CODABAR,
+    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.ITF,
+    BarcodeFormat.QR_CODE, BarcodeFormat.PDF_417, BarcodeFormat.AZTEC, BarcodeFormat.DATA_MATRIX,
+)
+
+/** The camera, reading the first barcode of [formats] it sees: its text and type. */
+@Composable
+fun BarcodeScanner(formats: List<BarcodeFormat>, hint: String, onCode: (String, BarcodeFormat) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val latestOnCode = rememberUpdatedState(onCode)
@@ -75,12 +90,12 @@ fun QrScanner(onCode: (String) -> Unit, onClose: () -> Unit) {
             val analysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-            val reader = QrReader()
+            val reader = CodeReader(formats)
             analysis.setAnalyzer(executor) { image ->
-                val text = if (done.get()) null else reader.read(image)
+                val found = if (done.get()) null else reader.read(image)
                 image.close()
-                if (text != null && done.compareAndSet(false, true)) {
-                    ContextCompat.getMainExecutor(context).execute { latestOnCode.value(text) }
+                if (found != null && done.compareAndSet(false, true)) {
+                    ContextCompat.getMainExecutor(context).execute { latestOnCode.value(found.first, found.second) }
                 }
             }
             try {
@@ -104,11 +119,12 @@ fun QrScanner(onCode: (String) -> Unit, onClose: () -> Unit) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
 
-            // The frame to line the code up in.
+            // The frame to line the code up in: square for a QR code, wide for a card's barcode.
+            val square = formats == listOf(BarcodeFormat.QR_CODE)
             Box(
                 Modifier
                     .align(Alignment.Center)
-                    .size(260.dp)
+                    .size(if (square) 260.dp else 300.dp, if (square) 260.dp else 150.dp)
                     .border(3.dp, Color.White, RoundedCornerShape(24.dp)),
             )
 
@@ -122,7 +138,7 @@ fun QrScanner(onCode: (String) -> Unit, onClose: () -> Unit) {
                 ) { PhIcon(Ph.X, "Close scanner", Color.White) }
 
                 Text(
-                    "Point at the QR code under Settings → Sign-in & people → Add a phone on the web.",
+                    hint,
                     color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -134,38 +150,44 @@ fun QrScanner(onCode: (String) -> Unit, onClose: () -> Unit) {
     }
 }
 
-/** Reads a QR code from a camera frame's brightness plane, or returns null. */
-private class QrReader {
+/**
+ * Reads a barcode from a camera frame's brightness plane: as it comes, turned a quarter (a card held
+ * sideways to the camera), and light-on-dark. Returns its text and type, or null.
+ */
+private class CodeReader(formats: List<BarcodeFormat>) {
     private val reader = MultiFormatReader().apply {
         setHints(
             mapOf(
-                DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.QR_CODE),
+                DecodeHintType.POSSIBLE_FORMATS to formats,
                 DecodeHintType.TRY_HARDER to true,
             ),
         )
     }
+    private val oneD = formats.any { it !in listOf(BarcodeFormat.QR_CODE, BarcodeFormat.AZTEC, BarcodeFormat.DATA_MATRIX, BarcodeFormat.PDF_417) }
 
-    fun read(image: ImageProxy): String? {
+    fun read(image: ImageProxy): Pair<String, BarcodeFormat>? {
         val plane = image.planes.firstOrNull() ?: return null
         val buffer = plane.buffer.duplicate().apply { rewind() }
         val data = ByteArray(buffer.remaining()).also { buffer.get(it) }
         val rowStride = plane.rowStride
+        val width = image.width
         val height = image.height
-        if (data.size < rowStride * (height - 1) + image.width) return null
-        val source = PlanarYUVLuminanceSource(data, rowStride, height, 0, 0, image.width, height, false)
-        return try {
-            reader.decodeWithState(BinaryBitmap(HybridBinarizer(source))).text
-        } catch (_: NotFoundException) {
-            // Codes on screens can come out light-on-dark; try the inverse once.
-            try {
-                reader.decodeWithState(BinaryBitmap(HybridBinarizer(source.invert()))).text
-            } catch (_: Exception) {
-                null
-            }
-        } catch (_: Exception) {
-            null
-        } finally {
-            reader.reset()
-        }
+        if (data.size < rowStride * (height - 1) + width) return null
+        val source = PlanarYUVLuminanceSource(data, rowStride, height, 0, 0, width, height, false)
+        decode(source)?.let { return it }
+        decode(source.invert())?.let { return it }
+        if (!oneD) return null
+        // Turned a quarter: the camera frame is sideways to how the phone is held.
+        val turned = ByteArray(width * height)
+        for (y in 0 until height) for (x in 0 until width) turned[x * height + (height - 1 - y)] = data[y * rowStride + x]
+        return decode(PlanarYUVLuminanceSource(turned, height, width, 0, 0, height, width, false))
+    }
+
+    private fun decode(source: com.google.zxing.LuminanceSource): Pair<String, BarcodeFormat>? = try {
+        reader.decodeWithState(BinaryBitmap(HybridBinarizer(source))).let { it.text to it.barcodeFormat }
+    } catch (_: Exception) {
+        null
+    } finally {
+        reader.reset()
     }
 }

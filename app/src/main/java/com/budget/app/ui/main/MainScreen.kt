@@ -96,6 +96,7 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
     val planVm: PlanViewModel = viewModel(key = "plan") { PlanViewModel(container) }
     val extrasVm: com.budget.app.ui.today.ExtrasViewModel = viewModel(key = "extras") { com.budget.app.ui.today.ExtrasViewModel(container) }
     val phoneVm: PhoneViewModel = viewModel(key = "phone") { PhoneViewModel(container) }
+    val loyaltyVm: com.budget.app.ui.loyalty.LoyaltyViewModel = viewModel(key = "loyalty") { com.budget.app.ui.loyalty.LoyaltyViewModel(container) }
     val extras by extrasVm.ui.collectAsState()
     val phone by phoneVm.ui.collectAsState()
     val update by container.updates.available.collectAsState()
@@ -152,6 +153,15 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
             container.openInsights.value = false
         }
     }
+    // Cards tab: credit cards or loyalty cards; a long-press shortcut opens Loyalty (or one card).
+    var loyaltyMode by rememberSaveable { mutableStateOf(false) }
+    val openLoyalty by container.openLoyalty.collectAsState()
+    LaunchedEffect(openLoyalty) {
+        if (openLoyalty != null) {
+            tab = Tab.CARDS
+            loyaltyMode = true
+        }
+    }
     val openCards by container.openCards.collectAsState()
     LaunchedEffect(openCards) {
         if (openCards) {
@@ -179,6 +189,7 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
             Tab.CARDS -> {
                 extrasVm.load()
                 phoneVm.loadToday()
+                loyaltyVm.refresh()
             }
             Tab.INSIGHTS -> {
                 extrasVm.load()
@@ -273,10 +284,17 @@ fun MainScreen(container: AppContainer, session: SessionState.SignedIn) {
                 Tab.MONTH -> MonthScreen(monthVm, onRecord = { record = RecordRequest(monthVm, it) })
                 Tab.CARDS -> {
                     val today = phone.today
-                    com.budget.app.ui.cards.CardsScreen(
-                        container, extras,
-                        header = if (today?.statement != null) ({ StatementHeader(today, onOpenBudget = { go("budget") }) }) else null,
-                    )
+                    val top: @Composable () -> Unit = { com.budget.app.ui.cards.CardsTop(loyaltyMode) { loyaltyMode = it } }
+                    if (loyaltyMode) {
+                        val loyalty by loyaltyVm.ui.collectAsState()
+                        com.budget.app.ui.loyalty.LoyaltyTab(loyaltyVm, loyalty, top, openLoyalty, onOpened = { container.openLoyalty.value = null })
+                    } else {
+                        com.budget.app.ui.cards.CardsScreen(
+                            container, extras,
+                            header = if (today?.statement != null) ({ StatementHeader(today, onOpenBudget = { go("budget") }) }) else null,
+                            top = top,
+                        )
+                    }
                 }
                 Tab.INSIGHTS -> if (legacy) {
                     com.budget.app.ui.insights.InsightsScreen(

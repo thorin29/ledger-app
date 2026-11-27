@@ -40,6 +40,10 @@ class MainActivity : ComponentActivity() {
             "insights" -> container.openInsights.value = true
         }
         intent?.removeExtra(EXTRA_OPEN_TAB)
+        intent?.getStringExtra(EXTRA_LOYALTY)?.let {
+            container.openLoyalty.value = it
+            intent.removeExtra(EXTRA_LOYALTY)
+        }
         intent?.getStringExtra(com.budget.app.data.reminders.AlertWorker.EXTRA_OPEN_SCREEN)?.let {
             container.openScreen.value = it
             intent.removeExtra(com.budget.app.data.reminders.AlertWorker.EXTRA_OPEN_SCREEN)
@@ -53,5 +57,8 @@ class MainActivity : ComponentActivity() {
     companion object {
         /** Set by the card reminder: open on the Cards tab. */
         const val EXTRA_OPEN_TAB = "open_tab"
+
+        /** Set by a long-press shortcut: "" opens Loyalty Cards, a card id opens that card. */
+        const val EXTRA_LOYALTY = "loyalty"
     }
 }

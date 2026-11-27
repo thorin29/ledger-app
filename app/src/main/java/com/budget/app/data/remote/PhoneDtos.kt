@@ -234,3 +234,21 @@ data class AlertDto(
 
 @Serializable
 data class AlertsResponse(val alerts: List<AlertDto> = emptyList())
+
+/** A store loyalty card the household shares (server 0.117+). */
+@Serializable
+data class LoyaltyCardDto(
+    val id: String = "",
+    val name: String = "",
+    val number: String = "",
+    /** ZXing's name for the barcode type: CODE_128, UPC_A, QR_CODE, ... */
+    val format: String = "CODE_128",
+    val color: String = "#334155",
+    val memberName: String? = null,
+    /** 0 when there's no image. */
+    val imageVersion: Int = 0,
+    val useCount: Int = 0,
+)
+
+@Serializable
+data class LoyaltyListResponse(val cards: List<LoyaltyCardDto> = emptyList())

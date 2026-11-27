@@ -62,7 +62,7 @@ import java.time.temporal.ChronoUnit
 
 /** The Cards tab: the main statement, the stack, each card's details under it (as on the web), and reminders. */
 @Composable
-fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable () -> Unit)? = null) {
+fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable () -> Unit)? = null, top: (@Composable () -> Unit)? = null) {
     val c = Budget.colors
     val lead by container.cardReminderLead.collectAsState(initial = CardReminderLead.OFF)
     var picking by remember { mutableStateOf(false) }
@@ -75,7 +75,8 @@ fun CardsScreen(container: AppContainer, extras: ExtrasUi, header: (@Composable 
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text(
+            if (top != null) top()
+            else Text(
                 "Cards",
                 color = c.ink, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp,
                 modifier = Modifier.statusBarsPadding().padding(start = 4.dp, top = 16.dp),
@@ -296,6 +297,29 @@ fun CardReminderSheet(current: CardReminderLead, onPick: (CardReminderLead) -> U
                 Text(
                     "Notifications are off for Budget, so reminders can't show. Turn them on in the phone's settings.",
                     color = c.danger, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+/** The Cards tab's title with its Credit | Loyalty switch. */
+@Composable
+fun CardsTop(loyalty: Boolean, onChange: (Boolean) -> Unit) {
+    val c = Budget.colors
+    Column(Modifier.statusBarsPadding().padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Cards", color = c.ink, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp, modifier = Modifier.padding(start = 4.dp))
+        Row(Modifier.fillMaxWidth().background(c.raised, RoundedCornerShape(12.dp)).padding(3.dp)) {
+            listOf(false to "Credit", true to "Loyalty").forEach { (value, label) ->
+                Text(
+                    label,
+                    color = if (loyalty == value) c.ink else c.muted, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(if (loyalty == value) c.surface else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable(role = Role.Tab) { onChange(value) }
+                        .padding(vertical = 9.dp),
                 )
             }
         }

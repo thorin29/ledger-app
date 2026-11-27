@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.27.0]
+
+Needs server 0.117.0.
+
+- **Loyalty cards** on the Cards tab (Credit | Loyalty at the top): the household's store cards as
+  tiles, most used first, with search once there are more than four. Tap one to show it: the screen
+  goes to full brightness and stays on until you leave, the barcode fills the width with the number
+  under it, and "Number only" shows just the number, large.
+- **Adding a card:** the camera opens to scan its barcode (number and type are read on the phone),
+  or type the number and pick the type. Then the store, member, a color, and an image from the
+  phone's photos (shrunk before it's sent).
+- **Long-press the app icon** for Loyalty Cards and the three cards used most.
+- Cards and their images are kept on the phone, so they show at the register with no signal.
+- The QR scanner on the first screen now also reads card barcodes, held either way.
+
 ## [0.26.0]
 
 Needs server 0.116.0.

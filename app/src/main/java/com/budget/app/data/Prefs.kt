@@ -42,6 +42,8 @@ class Settings(private val store: DataStore<Preferences>) {
         const val REMINDER_LAST_DAY = "reminder_last_day"
         /** Card payment reminders: off, 0, 1, 3 or 5 days before (plus the due date itself). */
         const val CARD_REMINDER_LEAD = "card_reminder_lead"
+        /** The loyalty cards as last fetched, so they show with no signal at the register. */
+        const val LOYALTY_CACHE = "loyalty_cache"
         /** How many review items there were when Review was last opened; More's dot shows for more. */
         const val REVIEW_SEEN = "review_seen"
         const val CARD_REMINDER_LAST_DAY = "card_reminder_last_day"

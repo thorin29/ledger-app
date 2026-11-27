@@ -54,6 +54,15 @@ class AppContainer(context: Context) {
     /** Set when the app was opened from a card reminder: show the Cards tab. */
     val openCards = MutableStateFlow(false)
 
+    /** Set by a long-press shortcut: "" opens Loyalty Cards, a card id opens that card. */
+    val openLoyalty = MutableStateFlow<String?>(null)
+
+    /** Where loyalty card images are kept on this phone. */
+    val filesDir: java.io.File get() = app.filesDir
+
+    /** The app's context, for things like long-press shortcuts. */
+    val appContext: Context get() = app
+
     /** Light/dark and accent, chosen on this phone. Kept through sign-out. */
     val appearance: Flow<Appearance> =
         combine(settings.observe(Settings.THEME_MODE), settings.observe(Settings.ACCENT)) { mode, accent ->
