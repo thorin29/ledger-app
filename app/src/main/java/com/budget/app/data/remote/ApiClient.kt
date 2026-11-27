@@ -274,18 +274,18 @@ class ApiClient(
     /** The card's image bytes. */
     suspend fun loyaltyImage(id: String): ByteArray = sendBytes("GET", "/api/v1/loyalty/" + enc(id) + "/image", null)
 
-    /** Sets the card's image (a JPEG); null removes it. Returns the card with its new image version. */
+    /** Sets the card's image (JPEG, or PNG for a see-through logo); null removes it. Returns the card with its new image version. */
     suspend fun setLoyaltyImage(id: String, jpeg: ByteArray?): LoyaltyCardDto =
         if (jpeg == null) decode(send("DELETE", "/api/v1/loyalty/" + enc(id) + "/image"))
         else decode(String(sendBytes("PUT", "/api/v1/loyalty/" + enc(id) + "/image", jpeg)))
 
     private fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8")
 
-    /** A raw request: [body] sent as a JPEG, the answer's bytes back. */
+    /** A raw request: [body] sent as an image (the server reads its type from the bytes), the answer's bytes back. */
     private suspend fun sendBytes(method: String, path: String, body: ByteArray?): ByteArray = withContext(Dispatchers.IO) {
         val base = (serverProvider() ?: throw IOException("No server")).toHttpUrlOrNull() ?: throw IOException("Bad server address")
         val builder = Request.Builder().url(base.newBuilder().encodedPath(path).build())
-        if (method == "PUT") builder.put((body ?: ByteArray(0)).toRequestBody("image/jpeg".toMediaType())) else builder.get()
+        if (method == "PUT") builder.put((body ?: ByteArray(0)).toRequestBody("application/octet-stream".toMediaType())) else builder.get()
         builder.header("User-Agent", "Budget-Android/${BuildConfig.VERSION_NAME}")
         val token = tokenProvider() ?: throw ApiException(401, "missing_bearer", "Not signed in")
         builder.header("Authorization", "Bearer $token")

@@ -79,7 +79,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 /** Tile colors, the same as the web's. */
-val CARD_COLORS = listOf("#7c2d12", "#b91c1c", "#b45309", "#166534", "#0f766e", "#1e3a8a", "#2851d6", "#6b21a8", "#be185d", "#334155", "#111827")
+val CARD_COLORS = listOf("#ffffff", "#7c2d12", "#b91c1c", "#b45309", "#166534", "#0f766e", "#1e3a8a", "#2851d6", "#6b21a8", "#be185d", "#334155", "#111827")
 
 private val FORMAT_LABELS = linkedMapOf(
     "CODE_128" to "Code 128 (most stores)", "CODE_39" to "Code 39", "CODE_93" to "Code 93", "CODABAR" to "Codabar",
@@ -88,6 +88,18 @@ private val FORMAT_LABELS = linkedMapOf(
 )
 
 private fun colorOf(hex: String): Color = runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(Color(0xFF334155))
+
+/** Light colors (like white) get dark text and an outline. */
+private fun isLight(hex: String): Boolean {
+    val c = colorOf(hex)
+    return 0.299f * c.red + 0.587f * c.green + 0.114f * c.blue > 0.67f
+}
+
+/** PNG and WebP images may be see-through (a logo); JPEGs are pictures. */
+private fun isLogo(file: File): Boolean = runCatching {
+    val b = file.inputStream().use { s -> ByteArray(12).also { s.read(it) } }
+    (b[0] == 0x89.toByte() && b[1] == 0x50.toByte()) || (b[0] == 0x52.toByte() && b[8] == 0x57.toByte())
+}.getOrDefault(false)
 
 private fun initials(name: String) = name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }
 
@@ -145,20 +157,28 @@ private fun CardGrid(ui: LoyaltyUi, vm: LoyaltyViewModel, toggle: @Composable ()
     }
 }
 
-/** A card as a tile: its image, or its color with the store's name. */
+/** A card as a tile: its image, or its color with the store's name. A see-through image (a logo) sits whole on the color. */
 @Composable
 private fun Tile(card: LoyaltyCardDto, image: File?, modifier: Modifier = Modifier, big: Boolean = false) {
     val bitmap = remember(image?.path) { image?.let { runCatching { BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() } }
-    Box(modifier.fillMaxWidth().aspectRatio(1.586f).clip(RoundedCornerShape(if (big) 18.dp else 14.dp)).background(colorOf(card.color))) {
+    val logo = remember(image?.path) { image?.let { isLogo(it) } ?: false }
+    val light = isLight(card.color)
+    val ink = if (light) Color(0xFF111827) else Color.White
+    val shape = RoundedCornerShape(if (big) 18.dp else 14.dp)
+    Box(
+        modifier.fillMaxWidth().aspectRatio(1.586f).clip(shape).background(colorOf(card.color))
+            .then(if (light) Modifier.border(1.dp, Color(0xFFE5E7EB), shape) else Modifier),
+    ) {
         if (bitmap != null) {
-            Image(bitmap, card.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (logo) Image(bitmap, card.name, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(if (big) 22.dp else 12.dp))
+            else Image(bitmap, card.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(if (big) 40.dp else 30.dp).background(Color.White.copy(alpha = 0.25f), CircleShape), contentAlignment = Alignment.Center) {
-                Text(initials(card.name), color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = if (big) 15.sp else 12.sp)
+            Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(if (big) 40.dp else 30.dp).background(if (light) Color.Black.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.25f), CircleShape), contentAlignment = Alignment.Center) {
+                Text(initials(card.name), color = ink, fontWeight = FontWeight.ExtraBold, fontSize = if (big) 15.sp else 12.sp)
             }
             Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-                card.memberName?.let { Text(it, color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp) }
-                Text(card.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (big) 22.sp else 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                card.memberName?.let { Text(it, color = ink.copy(alpha = 0.85f), fontSize = 11.sp) }
+                Text(card.name, color = ink, fontWeight = FontWeight.Bold, fontSize = if (big) 22.sp else 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -236,16 +256,26 @@ private fun Chip(label: String, onClick: () -> Unit) {
     )
 }
 
-/** A photo, shrunk to at most 1000 px wide, as JPEG. */
+/** An image, shrunk to at most 1000 px wide: PNG when it has see-through parts (a logo), else JPEG. */
 private fun shrink(context: Context, uri: Uri): ByteArray? = runCatching {
     val src = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: return null
     val scale = minOf(1f, 1000f / src.width)
     val bmp = if (scale < 1f) Bitmap.createScaledBitmap(src, (src.width * scale).toInt(), (src.height * scale).toInt(), true) else src
     ByteArrayOutputStream().use { out ->
-        bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        if (seeThrough(bmp)) bmp.compress(Bitmap.CompressFormat.PNG, 100, out) else bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
         out.toByteArray()
     }
 }.getOrNull()
+
+private fun seeThrough(bmp: Bitmap): Boolean {
+    if (!bmp.hasAlpha()) return false
+    val row = IntArray(bmp.width)
+    for (y in 0 until bmp.height) {
+        bmp.getPixels(row, 0, bmp.width, 0, y, bmp.width, 1)
+        if (row.any { (it ushr 24) < 250 }) return true
+    }
+    return false
+}
 
 /** Add or change a card: scan its barcode or type the number, then the store and its look. */
 @Composable
@@ -313,7 +343,7 @@ private fun CardEdit(vm: LoyaltyViewModel, ui: LoyaltyUi, card: LoyaltyCardDto, 
                         CARD_COLORS.forEach { hex ->
                             Box(
                                 Modifier.size(32.dp).background(colorOf(hex), CircleShape)
-                                    .then(if (color == hex) Modifier.border(3.dp, c.ink, CircleShape) else Modifier)
+                                    .then(if (color == hex) Modifier.border(3.dp, c.ink, CircleShape) else Modifier.border(1.dp, Color(0xFFE5E7EB), CircleShape))
                                     .clickable(role = Role.RadioButton) { color = hex },
                             )
                         }
@@ -321,7 +351,11 @@ private fun CardEdit(vm: LoyaltyViewModel, ui: LoyaltyUi, card: LoyaltyCardDto, 
                 }
                 val tile = LoyaltyCardDto(name = name.ifBlank { "Store" }, color = color, memberName = member.ifBlank { null })
                 if (preview != null) {
-                    Image(preview, "Card image", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().aspectRatio(1.586f).clip(RoundedCornerShape(14.dp)))
+                    val pngPicked = jpeg!!.size > 1 && jpeg!![0] == 0x89.toByte()
+                    Box(Modifier.fillMaxWidth().aspectRatio(1.586f).clip(RoundedCornerShape(14.dp)).background(colorOf(color)).border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(14.dp))) {
+                        if (pngPicked) Image(preview, "Card image", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(12.dp))
+                        else Image(preview, "Card image", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
                 } else {
                     Tile(tile.copy(imageVersion = if (existing != null) card.imageVersion else 0, id = card.id), existing)
                 }

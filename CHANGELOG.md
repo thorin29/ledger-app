@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.1]
+
+- **Card images keep see-through backgrounds.** A PNG logo is no longer turned into a JPEG (which
+  made its clear background black); it sits whole on the card's color. Pictures still fill the card.
+  White is a new card color, with dark text on light colors. Re-pick an image that came out black.
+
 ## [0.27.0]
 
 Needs server 0.117.0.
